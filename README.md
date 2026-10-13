@@ -48,7 +48,7 @@ repo นี้คือชุดทีม AI สำหรับ Claude Code: ผ
 CLAUDE.md            กติกากลางที่ทุก agent อ่าน
 apps/                งานพัฒนาแอป (Dev-ไอ้เก่ง)
   agent-dashboard/   dashboard แบบ live (ดูด้านล่าง)
-study/               งานเรียน (Writer-ยัยแว่นหนา) มีแค่ .gitkeep ใน repo สาธารณะ เนื้อหางานเรียนไม่ถูกเผยแพร่
+study/               งานเรียน (Writer-ยัยแว่นหนา) เนื้อหาเป็นส่วนตัว ไม่รวมใน public mirror (มีแค่ .gitkeep)
 portfolio/           เนื้อหาพอร์ตโฟลิโอ (Content Director)
 ```
 
@@ -98,4 +98,4 @@ dashboard เก็บ event ไว้ที่ `apps/agent-dashboard/data/event
 
 - Bash ไม่ได้ allow ไว้ใน `.claude/settings.json` Claude Code จะถามอนุมัติทุกครั้ง (ตั้งใจ)
 - กติกากลาง (ภาษา ขอบเขตโฟลเดอร์ การตอบสั้น ห้ามแต่งข้อเท็จจริง) อยู่ใน [`CLAUDE.md`](CLAUDE.md)
-- `study/` และ `portfolio/` เป็นพื้นที่ทำงานของเจ้าของ ใน repo สาธารณะนี้เป็นโฟลเดอร์ว่าง (`.gitkeep`) เท่านั้น เนื้อหางานเรียนอยู่นอก repo (`study/*` อยู่ใน `.gitignore`) ไม่ได้เป็นส่วนของตัวอย่างนี้
+- `study/` และ `portfolio/` เป็นพื้นที่ทำงานของเจ้าของ เนื้อหาในนั้นเป็นส่วนตัวและไม่รวมอยู่ใน public mirror (มีแค่ `.gitkeep` เป็นโฟลเดอร์ว่าง) ไม่ได้เป็นส่วนของตัวอย่างนี้
