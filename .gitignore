@@ -1,0 +1,29 @@
+# Root .gitignore for the ai-team workspace.
+# Kept consistent with apps/agent-dashboard/.gitignore (data/, node_modules/).
+
+# Dependencies
+node_modules/
+
+# macOS Finder metadata
+.DS_Store
+
+# Local dashboard screenshots (manual captures; not part of the repo)
+apps/agent-dashboard/screenshots/
+
+# Live hook event log (contains conversation content; must NOT be committed)
+apps/agent-dashboard/data/
+data/
+
+# Claude Code local settings (contain personal absolute paths)
+.claude/settings.local.json
+
+# Logs
+*.log
+
+# Environment files (may hold secrets)
+.env
+.env.*
+
+# Personal coursework: kept out of the public repo (only the folder placeholder is tracked)
+study/*
+!study/.gitkeep

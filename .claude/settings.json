@@ -1,0 +1,9 @@
+{
+  "agent": "เลขาคนสวย",
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write"
+    ]
+  }
+}

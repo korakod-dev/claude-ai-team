@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Per-start POST token: the server replaces the placeholder when it serves this page (never in a URL).
+       This page does not POST yet; a future client reads it with document.querySelector('meta[name="workspace-token"]'). -->
+  <meta name="workspace-token" content="__WORKSPACE_TOKEN__">
+  <title>Multi-Agent Workspace | korakod.dev</title>
+  <!-- No inline styles or scripts: the server sends a strict CSP (style-src 'self', script-src 'self') -->
+  <link rel="stylesheet" href="/workspace/style.css">
+</head>
+<body>
+  <!-- Header: title and connection STATUS badge (the badge reflects the SSE connection, see app.js) -->
+  <header class="topbar">
+    <h1 class="brand">
+      <span class="brand-orb" aria-hidden="true"></span>
+      <span class="brand-title">MULTI-AGENT WORKSPACE</span>
+      <span class="brand-domain">| korakod.dev</span>
+    </h1>
+    <div class="top-right">
+      <span id="status-badge" class="status-badge" data-state="connecting" title="Connection to /api/events">
+        <span class="status-label">STATUS</span>
+        <span class="dot" aria-hidden="true"></span>
+        <span id="status-text">CONNECTING</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Two columns: the approval queue panel was removed from this page (the queue API stays on the server) -->
+  <main class="grid">
+    <!-- LEFT: the 3D team scene (scene.js, Three.js r170 vendored in ./vendor/three).
+         Layout: เลขาคนสวย (router) is the sun; five satellites orbit it; the owner (User Prompt) is a larger star OUTSIDE the outer orbit, upper left.
+         The stage starts with class "no-webgl" (list layout). scene.js removes that class when the 3D scene runs.
+         Without WebGL the list layout stays and the message below is shown. -->
+    <section class="panel panel-pipeline" aria-labelledby="pipe-title">
+      <header class="panel-head">
+        <h2 id="pipe-title">สายงานและการทำงาน (Active Pipeline)</h2>
+      </header>
+
+      <div id="stage" class="stage no-webgl">
+        <!-- The canvas is added here by scene.js. Mouse: drag to orbit, wheel to zoom, double-click to reset. -->
+        <div id="scene" class="scene" role="img"
+             aria-label="Stellar map of the agent team: เลขาคนสวย is the sun and routes work to planets PM-Professor-X (planner), Dev-ไอ้เก่ง (apps/), QA-คุณละเอียด (read-only), Writer-ยัยแว่นหนา (study/) and Content Director (portfolio/). The black hole on the right takes failed tasks. Click a planet for its details."></div>
+
+        <!-- Shown only when WebGL is not available (scene.js sets hidden = false). -->
+        <p id="webgl-fallback" class="webgl-fallback" hidden>WebGL ใช้ไม่ได้ในเบราว์เซอร์นี้ จึงแสดงสถานะเป็นรายการแทนฉาก 3D</p>
+
+        <!-- Render quality toggle (scene.js cycles auto -> low -> medium -> high). Hidden in the list layout (style.css). -->
+        <button id="quality-toggle" class="quality-toggle" type="button" aria-label="Render quality">Quality: auto</button>
+
+        <!-- Planet HUD: shown by scene.js when a planet is clicked (hidden until then, and always hidden without WebGL).
+             Every data-hud part is filled by stellar/hud.js with textContent only. Metrics that the event data does not
+             have (CPU, memory, tokens, moons, timeouts) are shown as "no data". -->
+        <aside id="planet-hud" class="planet-hud" hidden aria-labelledby="planet-hud-name">
+          <header class="planet-hud-head">
+            <div class="planet-hud-title">
+              <p class="planet-hud-kicker">Planet</p>
+              <h3 id="planet-hud-name" class="planet-hud-name" data-hud="name"></h3>
+            </div>
+            <span class="planet-hud-status" data-hud="status" data-status="IDLE">IDLE</span>
+            <!-- Releases the focus (same as a click on empty space or Esc) -->
+            <button type="button" class="planet-hud-close" data-hud="close" aria-label="Release focus">×</button>
+          </header>
+          <section class="planet-hud-section">
+            <h4>Current tasks</h4>
+            <ul class="planet-hud-list" data-hud="current"></ul>
+          </section>
+          <section class="planet-hud-section">
+            <h4>Recent tasks</h4>
+            <ul class="planet-hud-list" data-hud="recent"></ul>
+          </section>
+          <section class="planet-hud-section">
+            <h4>Recent log</h4>
+            <ol class="planet-hud-list planet-hud-log" data-hud="logs"></ol>
+          </section>
+          <section class="planet-hud-section">
+            <h4>Metrics</h4>
+            <dl class="planet-hud-metrics" data-hud="metrics"></dl>
+          </section>
+          <p class="planet-hud-hint">Esc or click empty space to release</p>
+        </aside>
+
+        <!-- HTML labels, one per body. scene.js anchors each .node to its body on screen every frame and fades the
+             farther label of an overlap. Compact by default (name chip); hover or focus shows the detail.
+             app.js writes the badge (status) and the message box, so the text stays live.
+             app.js appends the model suffix to every .node-name except the owner's: "Dev-ไอ้เก่ง (Sonnet-High)".
+             In the 3D scene the compact label shows ONLY .node-model ("Sonnet-High", no member name; style.css);
+             hover or focus swaps it for the full .node-name. The owner (no model) keeps its name chip. -->
+        <div id="label-layer" class="label-layer">
+          <!-- User Prompt (the owner): a star outside the outer orbit. No model suffix for the owner. -->
+          <div class="node" data-step="user" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">คุณกฎ</span>
+              <span class="node-detail">User Prompt</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- เลขาคนสวย (Router, entry step): the sun -->
+          <div class="node" data-step="router" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">เลขาคนสวย</span>
+              <span class="node-model"></span>
+              <span class="node-detail">Secretary</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- PM-Professor-X (Planner, read-only): rose pink -->
+          <div class="node" data-step="pm" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">PM-Professor-X</span>
+              <span class="node-model"></span>
+              <span class="node-detail">planner</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- Dev-ไอ้เก่ง (App developer, apps/, write): electric blue, code-token ring -->
+          <div class="node" data-step="appdev" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">Dev-ไอ้เก่ง</span>
+              <span class="node-model"></span>
+              <span class="node-detail">apps/</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- QA-คุณละเอียด (QA reviewer, read-only): gold, lens rings -->
+          <div class="node" data-step="qa" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">QA-คุณละเอียด</span>
+              <span class="node-model"></span>
+              <span class="node-detail">read-only</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- Writer-ยัยแว่นหนา (Study writer, study/): green, glyph ring -->
+          <div class="node" data-step="study" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">Writer-ยัยแว่นหนา</span>
+              <span class="node-model"></span>
+              <span class="node-detail">study/</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+
+          <!-- Content Director (Portfolio writer, portfolio/): violet -->
+          <div class="node" data-step="portfolio" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">Content Director</span>
+              <span class="node-model"></span>
+              <span class="node-detail">portfolio/</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT column: agent list (top) and live log (bottom) -->
+    <div class="col-right">
+      <section class="panel panel-agents" aria-labelledby="agents-title">
+        <header class="panel-head">
+          <h2 id="agents-title">รายชื่อทีม AI & สถานะ (AI Agents &amp; Logs)</h2>
+        </header>
+        <p class="list-label">Sub-Agents List</p>
+        <ul id="agent-list" class="agent-list">
+          <li class="agent-card" data-agent="secretary" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">🤖</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>เลขาคนสวย</span></div>
+              <div class="agent-scope">Router · รับงานและมอบหมาย</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="pm" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">🧭</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>PM-Professor-X</span></div>
+              <div class="agent-scope">Read-only: plans large tasks and splits them for parallel work</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="app-dev" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">💻</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>Dev-ไอ้เก่ง</span></div>
+              <div class="agent-scope">apps/ · write</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="qa-reviewer" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">🔍</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>QA-คุณละเอียด</span></div>
+              <div class="agent-scope">Read-only: scans code, finds bugs, writes tests</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="study-writer" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">📚</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>Writer-ยัยแว่นหนา</span></div>
+              <div class="agent-scope">study/</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="portfolio-writer" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">🎨</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>Content Director</span></div>
+              <div class="agent-scope">portfolio/</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="panel panel-log" aria-labelledby="log-title">
+        <header class="panel-head">
+          <h2 id="log-title">Log การทำงานล่าสุด (Live Activity)</h2>
+          <!-- Clears the view only (log, pipeline, agent list). Server history is not changed. app.js handles the click. -->
+          <button id="clear-view-btn" class="clear-view-btn" type="button">ล้างหน้าจอ</button>
+        </header>
+        <!-- Newest line at the bottom. app.js auto-scrolls unless the user scrolled up. -->
+        <ol id="log" class="log" aria-live="off"></ol>
+      </section>
+    </div>
+  </main>
+
+  <!-- Order: app.js (status, labels, log) and scene.js (3D view). scene.js is a module (deferred), it sets window.workspaceScene. -->
+  <script src="/workspace/app.js"></script>
+  <script type="module" src="/workspace/scene.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "stellar-scene-modules",
+  "private": true,
+  "description": "Marks the Stellar Universe modules as ES modules so Node tests can import them. Browsers ignore this file; server.js does not serve it.",
+  "type": "module"
+}

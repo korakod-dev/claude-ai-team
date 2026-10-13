@@ -1,0 +1,460 @@
+/* style.css - Multi-Agent Workspace, Stellar Universe theme (Phase 2): deep space, glass panels, HUD accents.
+   Plain CSS, no build step, no images, no web fonts. The pipeline is a 3D scene (scene.js) with HTML labels on top.
+   Layout: two columns (3D stellar map | agents + log). Glass = translucent panel with a blur and a thin glow border. */
+
+:root {
+  --space-0: #02030a;               /* deepest background */
+  --space-1: #070b1c;               /* panel base */
+  --glass: rgba(12, 18, 40, 0.55);  /* glass panel fill */
+  --glass-border: rgba(125, 211, 252, 0.16);
+  --glass-glow: rgba(56, 189, 248, 0.35);
+  --text: #e6edf7;
+  --muted: #8b9bb8;
+  --cyan: #7dd3fc;
+  --violet: #c4b5fd;
+  --gold: #fde68a;
+  --green: #86efac;
+  --amber: #fbbf24;
+  --red: #fca5a5;
+  --grey: #64748b;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 700px at 78% -10%, rgba(91, 33, 182, 0.22), transparent 60%),
+    radial-gradient(900px 600px at -10% 110%, rgba(8, 145, 178, 0.14), transparent 60%),
+    var(--space-0);
+  color: var(--text);
+  font-family: "Noto Sans Thai", "Sarabun", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* Visually hidden but readable by screen readers */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- Header (glass top bar) ---------- */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, rgba(10, 14, 32, 0.8), rgba(4, 6, 16, 0.6));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.brand { margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+/* A small glowing orb replaces the old emoji icon */
+.brand-orb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff7d6 0%, #fbbf24 35%, #7c3aed 100%);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.55), 0 0 22px rgba(124, 58, 237, 0.35);
+}
+.brand-title {
+  letter-spacing: 0.14em; text-transform: uppercase; font-size: 14px;
+  background: linear-gradient(90deg, #e0f2fe, #7dd3fc 45%, #c4b5fd);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.brand-domain { color: var(--muted); font-weight: 500; font-size: 13px; }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 14px; border-radius: 999px;
+  border: 1px solid rgba(134, 239, 172, 0.45);
+  background: rgba(34, 197, 94, 0.08);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+}
+.status-badge .status-label { color: var(--muted); }
+.status-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+.status-badge[data-state="reconnecting"], .status-badge[data-state="connecting"] {
+  border-color: rgba(251, 191, 36, 0.45); background: rgba(251, 191, 36, 0.07);
+}
+.status-badge[data-state="reconnecting"] .dot, .status-badge[data-state="connecting"] .dot {
+  background: var(--amber); box-shadow: 0 0 10px var(--amber);
+}
+.status-badge[data-state="offline"] { border-color: rgba(248, 113, 113, 0.5); background: rgba(239, 68, 68, 0.08); }
+.status-badge[data-state="offline"] .dot { background: #f87171; box-shadow: 0 0 10px #f87171; }
+
+/* ---------- Layout ---------- */
+/* Two columns: stellar map (left, wider) and the right column (agents + log). */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 1.35fr) minmax(300px, 1fr);
+  gap: 16px;
+  padding: 16px;
+  height: calc(100vh - 62px);
+  min-height: 640px;
+}
+.col-right {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 250px;
+  gap: 16px;
+  min-height: 0;
+}
+
+/* Glass panel: translucent fill, blur, thin cyan border and a soft top highlight */
+.panel {
+  display: flex; flex-direction: column; min-height: 0;
+  background: linear-gradient(165deg, rgba(20, 28, 62, 0.6), rgba(7, 10, 26, 0.7));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 50px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; flex: 0 0 auto; gap: 10px;
+}
+/* Panel title: small uppercase label with a cyan tick */
+.panel-head h2 {
+  margin: 0; font-size: 12px; font-weight: 600; color: var(--text);
+  letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px;
+}
+.panel-head h2::before {
+  content: ""; width: 10px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, #7dd3fc, #c4b5fd); box-shadow: 0 0 8px rgba(125, 211, 252, 0.6);
+}
+/* "ล้างหน้าจอ" button in the log panel header (view only) */
+.clear-view-btn {
+  padding: 5px 12px; border: 1px solid rgba(125, 211, 252, 0.25); border-radius: 999px; cursor: pointer;
+  background: rgba(125, 211, 252, 0.06); color: var(--cyan); font-size: 12px;
+}
+.clear-view-btn:hover { background: rgba(125, 211, 252, 0.16); box-shadow: 0 0 12px rgba(125, 211, 252, 0.3); }
+.clear-view-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* ---------- Stage: 3D scene + HTML labels ---------- */
+/* The stage fills the pipeline panel. The canvas (.scene) and the labels (.label-layer) are stacked on top of each other.
+   Labels are positioned by scene.js in CSS pixels (transform), so only the anchor point is set here. */
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 520px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: var(--space-0);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
+}
+/* HUD corner brackets and a faint scanline layer over the 3D view (decoration only, no pointer events) */
+.stage::before, .stage::after { content: ""; position: absolute; z-index: 2; pointer-events: none; }
+.stage::before {
+  inset: 8px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--cyan), var(--cyan)) top left / 18px 1px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) top left / 1px 18px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) top right / 18px 1px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) top right / 1px 18px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) bottom left / 18px 1px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) bottom left / 1px 18px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) bottom right / 18px 1px no-repeat,
+    linear-gradient(var(--cyan), var(--cyan)) bottom right / 1px 18px no-repeat;
+  opacity: 0.45;
+}
+.stage::after {
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+  opacity: 0.6;
+}
+.scene { position: absolute; inset: 0; }
+.scene canvas { display: block; width: 100%; height: 100%; outline: none; cursor: grab; }
+.scene canvas:active { cursor: grabbing; }
+
+.label-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+
+/* Each .node is a zero-size anchor at its body's screen point (scene.js sets the transform). */
+.node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+/* Label block: centred horizontally, offset below or above the body (scene.js sets the transform). */
+.node-info {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: none; /* scene.js sets the offset from the body every frame (inline style) */
+  width: max-content;
+  max-width: 170px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  pointer-events: none;
+}
+/* Name chip: glass capsule with a coloured hairline, the colour comes from the body (per data-step below).
+   .node-model is the same chip with the "Model-Effort" text only (the compact 3D label, see below). */
+.node-name,
+.node-model {
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  background: rgba(6, 10, 26, 0.62);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+}
+.node[data-step="user"] .node-name { color: #e0f2fe; }
+.node[data-step="router"] .node-name { color: #fde68a; font-size: 13px; border-color: rgba(251, 191, 36, 0.45); box-shadow: 0 0 16px rgba(251, 191, 36, 0.25); }
+.node[data-step="router"] .node-model { color: #fde68a; font-size: 13px; border-color: rgba(251, 191, 36, 0.45); box-shadow: 0 0 16px rgba(251, 191, 36, 0.25); }
+.node[data-step="pm"] .node-name { color: #f9a8d4; border-color: rgba(244, 114, 182, 0.4); }
+.node[data-step="pm"] .node-model { color: #f9a8d4; border-color: rgba(244, 114, 182, 0.4); }
+.node[data-step="appdev"] .node-name { color: #7dd3fc; border-color: rgba(56, 189, 248, 0.4); }
+.node[data-step="appdev"] .node-model { color: #7dd3fc; border-color: rgba(56, 189, 248, 0.4); }
+.node[data-step="qa"] .node-name { color: #fde047; border-color: rgba(250, 204, 21, 0.4); }
+.node[data-step="qa"] .node-model { color: #fde047; border-color: rgba(250, 204, 21, 0.4); }
+.node[data-step="study"] .node-name { color: #86efac; border-color: rgba(74, 222, 128, 0.4); }
+.node[data-step="study"] .node-model { color: #86efac; border-color: rgba(74, 222, 128, 0.4); }
+.node[data-step="portfolio"] .node-name { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.4); }
+.node[data-step="portfolio"] .node-model { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.4); }
+
+/* Occluded body (behind the sun or another planet): the label stays readable, its border turns dashed */
+.node.is-occluded .node-name,
+.node.is-occluded .node-model { border-style: dashed; border-color: rgba(226, 232, 240, 0.45); }
+/* Overlapping label: scene.js fades the farther one with an inline opacity on .node-info (no class needed). */
+
+/* 3D label text: compact = the "Model-Effort" chip (.node-model). When no model or effort is known (dynamic planet without
+   an agent file, /api/agents failed) scripts put the member's display name in the same chip, so it is never blank; it
+   switches to Model-Effort when that arrives. Hover or focus (.is-expanded) swaps it for the full name chip
+   ("Dev-ไอ้เก่ง (Sonnet-High)"). The owner has no .node-model and keeps its name chip. */
+.node:not([data-step="user"]) .node-name { display: none; }
+.node.is-expanded .node-name { display: inline-block; }
+.node.is-expanded .node-model { display: none; }
+.node-model:empty { display: none; }   /* safety net: nothing to show at all (the owner never has the chip) */
+.node-model { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }   /* a long fallback name must not widen the label; 170px = .node-info max-width (border-box) */
+/* List layout (no WebGL): the full name chip is the label, the model chip is not needed */
+.stage.no-webgl .node .node-name { display: inline-block; }
+.stage.no-webgl .node .node-model { display: none; }
+
+/* Moons (concurrent instances of one agent, scene.js): "+N" counts the instances beyond the moons that are drawn. The chip
+   sits under the model chip, in the planet's colour, and is hidden while empty. Not shown in the list layout. */
+.node-more {
+  font: 700 10px/1 var(--mono); white-space: nowrap;
+  padding: 2px 7px; border-radius: 999px;
+  color: #e2e8f0; background: rgba(6, 10, 26, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+}
+.node-more:empty { display: none; }
+.node[data-step="pm"] .node-more { color: #f9a8d4; border-color: rgba(244, 114, 182, 0.4); }
+.node[data-step="appdev"] .node-more { color: #7dd3fc; border-color: rgba(56, 189, 248, 0.4); }
+.node[data-step="qa"] .node-more { color: #fde047; border-color: rgba(250, 204, 21, 0.4); }
+.node[data-step="study"] .node-more { color: #86efac; border-color: rgba(74, 222, 128, 0.4); }
+.node[data-step="portfolio"] .node-more { color: #d8b4fe; border-color: rgba(192, 132, 252, 0.4); }
+.stage.no-webgl .node .node-more { display: none; }
+
+/* Hover tip of a moon: what that instance is doing (scene.js writes the text and the position). Moons have no permanent label. */
+.moon-tip {
+  position: absolute; left: 0; top: 0;
+  display: none;
+  max-width: 260px; padding: 5px 9px; border-radius: 10px;
+  background: rgba(4, 7, 18, 0.82);
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  color: #e2e8f0; font: 10.5px/1.4 var(--mono); word-break: break-word;
+  pointer-events: none;
+}
+.moon-tip.is-visible { display: block; }
+.stage.no-webgl .moon-tip { display: none; }
+
+/* Compact label (default): the model chip only. The scope text, status badge and message appear on hover or
+   when the planet is focused (.node.is-expanded, set by scene.js). The HUD still shows the full detail on click. */
+.node-detail { display: none; font: 10px/1.2 var(--mono); color: #94a3b8; text-shadow: 0 0 6px rgba(0, 0, 0, 0.8); }
+.node .badge { display: none; }
+.node-msg { display: none; }
+.node.is-expanded .node-detail { display: block; }
+.node.is-expanded .badge { display: inline-block; }
+.node.is-expanded .node-msg:not(:empty) { display: block; }
+
+.node-msg {
+  padding: 5px 8px; border-radius: 10px;
+  background: rgba(4, 7, 18, 0.7);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(125, 211, 252, 0.1);
+  color: #cbd5e1;
+  font: 10.5px/1.4 var(--mono);
+  max-width: 170px; max-height: 46px; overflow: hidden; word-break: break-word;
+  text-align: left;
+}
+.node-msg:empty { display: none; } /* no message yet: nothing shown */
+.badge {
+  flex: 0 0 auto;
+  padding: 2px 8px; border-radius: 999px;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+  border: 1px solid transparent;
+}
+
+/* Quality toggle: glass pill in the top-left corner of the stage (scene.js cycles the mode) */
+.quality-toggle {
+  position: absolute; left: 14px; top: 14px; z-index: 3;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  background: rgba(6, 10, 26, 0.6);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  color: var(--cyan); font: 11px/1 var(--mono); letter-spacing: 0.04em;
+}
+.quality-toggle:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(125, 211, 252, 0.35); }
+.quality-toggle:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* Fallback (no WebGL, or the scene failed to start): the labels become a plain list under the stage. */
+.webgl-fallback {
+  position: absolute; left: 12px; right: 12px; top: 8px; margin: 0;
+  color: var(--gold); font-size: 12px; z-index: 1;
+}
+.stage.no-webgl { min-height: 0; overflow: visible; border: 0; background: none; box-shadow: none; }
+.stage.no-webgl::before, .stage.no-webgl::after { display: none; }
+.stage.no-webgl .scene { display: none; }
+.stage.no-webgl .quality-toggle { display: none; }
+.stage.no-webgl .label-layer {
+  position: relative; inset: auto; pointer-events: auto;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+}
+.stage.no-webgl .node { position: relative; width: auto; height: auto; transform: none; }
+/* The list layout has no hover and no focus: it always shows the full detail, status and message */
+.stage.no-webgl .node-detail { display: block; }
+.stage.no-webgl .node .badge { display: inline-block; }
+.stage.no-webgl .node-msg:not(:empty) { display: block; }
+.stage.no-webgl .node-info { position: relative; transform: none; max-width: none; align-items: flex-start; }
+.stage.no-webgl .node-msg { max-width: none; max-height: none; }
+.stage.no-webgl .webgl-fallback { position: static; margin-bottom: 10px; }
+.stage.no-webgl .webgl-fallback[hidden] { display: none; }
+.stage.no-webgl .label-layer { padding-top: 0; }
+
+/* Status colours shared by badges, pills and log lines (the 3D body glow is in scene.js). */
+.badge.s-done, .pill.s-done { color: #bbf7d0; background: rgba(34, 197, 94, 0.14); border-color: rgba(74, 222, 128, 0.45); }
+.badge.s-working, .pill.s-working { color: #fef08a; background: rgba(250, 204, 21, 0.14); border-color: rgba(250, 204, 21, 0.45); }
+.badge.s-error, .pill.s-error { color: #fecaca; background: rgba(239, 68, 68, 0.16); border-color: rgba(248, 113, 113, 0.5); }
+.badge.s-idle, .pill.s-idle { color: #cbd5e1; background: rgba(100, 116, 139, 0.2); border-color: rgba(148, 163, 184, 0.3); }
+
+/* ---------- Right: agents ---------- */
+.list-label {
+  margin: 0 0 10px; color: var(--muted); font: 11px/1 var(--mono);
+  letter-spacing: 0.08em; text-transform: uppercase; flex: 0 0 auto;
+}
+.agent-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+.agent-card {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px 9px 14px; border-radius: 12px;
+  background: rgba(8, 12, 28, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+/* Status accent: a thin glowing bar on the left edge of the card */
+.agent-card::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 2px;
+  background: var(--grey);
+}
+.agent-card.s-working { border-color: rgba(250, 204, 21, 0.45); box-shadow: 0 0 16px rgba(250, 204, 21, 0.18); }
+.agent-card.s-working::before { background: #fde047; box-shadow: 0 0 8px #fde047; }
+.agent-card.s-done { border-color: rgba(74, 222, 128, 0.4); }
+.agent-card.s-done::before { background: #4ade80; }
+.agent-card.s-error { border-color: rgba(248, 113, 113, 0.55); }
+.agent-card.s-error::before { background: #f87171; box-shadow: 0 0 8px #f87171; }
+.agent-emoji { font-size: 22px; width: 30px; text-align: center; }
+.agent-info { flex: 1; min-width: 0; }
+.agent-name { font-weight: 600; font-size: 14px; }
+.agent-scope { color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* Activity text under the scope line (app.js paintActivity): "คิดอยู่" / "กำลังใช้ tool: Read". Empty = no space taken. Static text, no animation. */
+.agent-act { color: #7dd3fc; font: 11px/1.3 var(--mono); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-act:empty { display: none; }
+.pill {
+  flex: 0 0 auto; padding: 2px 10px; border-radius: 999px;
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
+  border: 1px solid transparent;
+}
+
+/* ---------- Right bottom: log ---------- */
+.log {
+  list-style: none; margin: 0; padding: 10px 12px;
+  flex: 1; min-height: 0; overflow-y: auto;
+  background: rgba(3, 5, 14, 0.7); border-radius: 10px; border: 1px solid rgba(125, 211, 252, 0.1);
+  font: 12px/1.6 var(--mono);
+}
+.log-line { white-space: pre-wrap; word-break: break-word; }
+.log-time { color: #7c8aa5; }
+.log-sep { color: #3b4a66; }
+.log-agent { font-weight: 600; }
+.log-agent[data-agent="user"] { color: var(--cyan); }
+.log-agent[data-agent="secretary"] { color: var(--violet); }
+.log-agent[data-agent="pm"] { color: #f9a8d4; }
+.log-agent[data-agent="app-dev"] { color: #7dd3fc; }
+.log-agent[data-agent="qa-reviewer"] { color: #fde047; }
+.log-agent[data-agent="study-writer"] { color: #86efac; }
+.log-agent[data-agent="portfolio-writer"] { color: #d8b4fe; }
+.log-agent:not([data-agent="user"]):not([data-agent="secretary"]):not([data-agent="pm"]):not([data-agent="app-dev"]):not([data-agent="qa-reviewer"]):not([data-agent="study-writer"]):not([data-agent="portfolio-writer"]) { color: var(--muted); }
+.log-msg.s-error { color: var(--red); }
+
+/* ---------- Responsive: stack the columns on narrow screens ---------- */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  .col-right { grid-template-rows: auto 320px; }
+  .panel-agents .agent-list { max-height: none; }
+}
+
+/* Motion: the 3D animation runs in scene.js (slowed there when prefers-reduced-motion is set).
+   The HTML labels do not animate, so nothing else needs a reduced-motion rule. */
+
+/* ---------- Planet HUD (Stellar Universe): shown while a planet is focused (scene.js, stellar/hud.js) ---------- */
+/* Bottom-right corner of the stage, a solid dark panel with cyan corner accents (no backdrop blur: the blur was costly
+   to composite over the WebGL canvas every frame, and the near-opaque fill keeps the text readable on its own).
+   The label layer ignores pointer events, so the canvas still gets the clicks outside the panel. */
+.planet-hud {
+  position: absolute; right: 14px; bottom: 14px; z-index: 4;
+  width: 286px; max-height: calc(100% - 28px); overflow-y: auto;
+  padding: 14px 15px; border-radius: 14px;
+  background: linear-gradient(170deg, rgba(14, 22, 52, 0.97), rgba(4, 7, 20, 0.98));
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: #cbd5e1; font-size: 12px; line-height: 1.45;
+  pointer-events: auto;
+}
+.planet-hud[hidden] { display: none; }
+.planet-hud-head { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.planet-hud-title { flex: 1 1 auto; min-width: 0; }
+.planet-hud-kicker {
+  margin: 0; font: 10px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: #5eead4;
+}
+.planet-hud-name { margin: 0; font-size: 15px; color: #f1f5f9; overflow-wrap: anywhere; }
+.planet-hud-status {
+  flex: 0 0 auto; padding: 2px 9px; border-radius: 999px;
+  font: 700 10px/1.4 var(--mono); letter-spacing: 0.06em; border: 1px solid #334155; color: #94a3b8;
+}
+.planet-hud-close {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(255, 255, 255, 0.03); color: #cbd5e1;
+  cursor: pointer; font-size: 16px; line-height: 1;
+}
+.planet-hud-close:hover { border-color: var(--cyan); color: var(--cyan); }
+.planet-hud-close:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.planet-hud-section { margin-top: 12px; }
+.planet-hud-section h4 {
+  margin: 0 0 5px; font: 700 10px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: #7dd3fc;
+}
+.planet-hud-list { margin: 0; padding: 0; list-style: none; }
+.planet-hud-list li { padding: 4px 0; border-bottom: 1px dashed rgba(148, 163, 184, 0.14); overflow-wrap: anywhere; }
+.planet-hud-list li:last-child { border-bottom: 0; }
+.planet-hud-list li[data-status="PROCESSING"], .planet-hud-list li[data-status="WORKING"] { color: #bae6fd; }
+.planet-hud-list li[data-status="COMPLETED"] { color: #fef08a; }
+.planet-hud-list li[data-status="ERROR"] { color: #fca5a5; }
+/* A task open for more than 30 min: its end event may be missing (FIFO match, see stellar/store.js) */
+.planet-hud-list li[data-stale="true"] { color: #fcd34d; text-decoration: underline dotted rgba(252, 211, 77, 0.6); }
+.planet-hud-metrics { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+.planet-hud-metrics dt { color: #94a3b8; }
+.planet-hud-metrics dd { margin: 0; text-align: right; color: #e2e8f0; }
+.planet-hud-metrics dd.no-data { color: #64748b; font-style: italic; }
+.planet-hud-hint { margin: 12px 0 0; font-size: 10px; color: #64748b; }
+.planet-hud-status[data-status="PROCESSING"], .planet-hud-status[data-status="WORKING"] { color: #bae6fd; border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.35); }
+.planet-hud-status[data-status="COMPLETED"] { color: #fef08a; border-color: #facc15; }
+.planet-hud-status[data-status="ERROR"] { color: #fecaca; border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.35); }
+/* No WebGL: no scene, so no planet can be clicked and the HUD stays hidden */
+.stage.no-webgl .planet-hud { display: none; }
