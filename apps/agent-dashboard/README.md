@@ -4,6 +4,14 @@ Dashboard แบบ live สำหรับ AI team agents (secretary, pm, app-d
 portfolio-writer, advisor และ subagents ของแต่ละตัว) แสดงว่าใครมอบหมายงานให้ใคร และสถานะปัจจุบัน
 (running / done / failed / stale) เป็นกราฟ ข้อมูลมาจาก Claude Code hooks
 
+- Refresh / reconnect ไม่ล้างข้อมูล: ตอนต่อ SSE server ส่ง event `session` (key แบบ opaque) แล้วส่ง event ทั้งหมดใน buffer ของ epoch ปัจจุบัน (buffer 2000) หน้าเว็บ replay ผ่านเส้นทางเดียวกับ live จึงได้ log, สถานะ node/card และ PROCESSING ของงานที่ยังไม่จบกลับมา ข้อมูลถูกล้างเฉพาะเมื่อ epoch ใหม่เริ่ม (หรือกดปุ่ม "ล้างหน้าจอ") ทดสอบใน `test/workspace-reload-session.test.js`
+- **Sessions แบบ epoch (หลาย Claude session พร้อมกัน):** hub ไม่ตาม "session_id ล่าสุด" แต่เก็บ epoch = กลุ่ม session ที่ทำงานซ้อนเวลากัน (key ของ epoch = hash ของ session_id แรก, สมาชิกเก็บ `lastSeenMs` และ `ended`, สูงสุด 200)
+  - `SessionStart` ของ session ที่เป็นสมาชิกอยู่แล้ว (resume/compact) ไม่ทำอะไร
+  - `SessionStart` ใหม่ขณะที่มีสมาชิกอื่น **live** (ยังไม่ `SessionEnd` และเงียบน้อยกว่า `SESSION_IDLE_MS` = 60 นาที) = **เข้าร่วม epoch เดิม** ไม่ล้าง ไม่ส่ง `session` ใหม่ stop ที่พักไว้ไม่หาย
+  - `SessionStart` ใหม่เมื่อไม่มีสมาชิก live (ทุกตัวจบแล้ว รวม `/clear` = End+Start, หรือเงียบ >= `SESSION_IDLE_MS`) = **epoch ใหม่**: ล้าง buffer ของ hook, ล้าง stop ที่พัก, ส่ง `session` ใหม่ + buffer ให้ทุก client **ครั้งเดียวต่อการอ่านไฟล์หนึ่งรอบ**
+  - record อื่นของ session ที่ไม่ใช่สมาชิก = เข้าร่วม epoch (ไม่เคยเปิด epoch ใหม่/ล้างอะไร) จึงไม่เกิดจอสลับเมื่อ record ของ session เก่ามาช้า
+  - `SESSION_IDLE_MS` วัดจาก `data/events.jsonl` จริง (66 sessions): ช่วงเงียบระหว่าง record ของ session เดียวกันขณะ Agent call/sub-agent เปิดอยู่ สูงสุด 33.2 นาที จึงตั้ง 60 นาที (30 นาทีจะตัด session ที่รอ sub-agent นาน)
+  - **ข้อจำกัดที่รู้:** เมื่อมี 2 session พร้อมกัน node เลขาแสดง event ล่าสุดจากทั้งสอง session และ stop ที่ไม่มี id (`~`, FIFO) อาจปิด task ชนิดเดียวกันของอีก session; session ที่ถูกทิ้งไว้ไม่ `SessionEnd` จะทำให้ epoch เปิดค้าง 60 นาที (session ใหม่ในช่วงนั้นเข้าร่วม ไม่ล้างจอ ใช้ปุ่ม "ล้างหน้าจอ" ได้)
 - ใช้ Node.js built-ins เท่านั้น (ไม่มี dependency, ไม่มี framework, ไม่มี build step)
 - อัปเดตแบบ live ผ่าน Server-Sent Events: server ส่งเฉพาะ records ใหม่ (delta)
 - คลิก node เพื่อดูรายละเอียด: status, เวลา, delegation links, recent events
@@ -379,7 +387,7 @@ npm run replay:reset      # ลบ data/events.jsonl ก่อน แล้ว r
 npm test                  # tests ทั้งหมด ใช้ไฟล์ชั่วคราวเท่านั้น ไม่แตะ data/
 ```
 
-`replay` ใช้ session id ใหม่ทุกครั้งที่รัน ดังนั้นการรันซ้ำจะไม่ปนกัน
+`replay` ใช้ session id ใหม่ทุกครั้งที่รัน ดังนั้นการรันซ้ำจะไม่ปนกันใน logic ของ session (`SessionStart` ของ sample จะเข้าร่วม epoch เดิมถ้ายังมี session live อยู่ ไม่ล้างหน้าจอ; ใช้ `replay:reset` เพื่อเริ่มหน้าสะอาด)
 
 ## Connecting real hooks
 

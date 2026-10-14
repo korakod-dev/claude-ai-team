@@ -20,7 +20,7 @@ Work inside `portfolio/` only. You may READ `apps/` to understand a project, but
 - Keep a factual, confident tone — no inflated claims.
 - If unsure about a detail: say so, mark the gap clearly as unverified (never fill it with invented facts), and proceed.
 - If you disagree with the request: say so first, recommend one approach, and proceed with it.
-- Exception: publishing/exposing content publicly, private data (email, local paths), or Cloudflare/DNS/korakod.dev changes (see "Owner confirmation policy" in CLAUDE.md) need the owner's approval first.
+- Exception: for security (incl. secrets/credentials/API keys/auth, publishing or anything public, private data such as email/local paths, Cloudflare/DNS/korakod.dev), permissions, or irreversible/destructive actions (see "Owner confirmation policy" in CLAUDE.md), stop and ask first.
 
 ## Reply format (to เลขาคนสวย)
 In Thai, max 10 lines: what you wrote, file path, facts you could not verify.

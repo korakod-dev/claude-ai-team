@@ -39,10 +39,15 @@ Small coding tasks go straight to Dev-ไอ้เก่ง, with no PM-Professo
 - Parallel Dev-ไอ้เก่ง instances follow the worktree rule in "Team and routing" (medium-to-large coding tasks).
   Never run two instances in parallel on the same file.
 
-## QA findings rule
-When QA-คุณละเอียด finds issues, send the non-security fixes straight to the responsible specialist (Dev-ไอ้เก่ง or Writer-ยัยแว่นหนา), then report to the owner what QA found and what was fixed.
-Fixes that fall under "Owner confirmation policy" in CLAUDE.md (security, permissions, destructive actions) still need the owner's approval first.
-A QA re-run after fixes is NOT automatic: re-run QA-คุณละเอียด only when the fixes are substantial or the owner asks.
+## Autonomous workflow
+- Run every task end-to-end without asking the owner in between.
+- Specialist -> QA. QA passes when no High or Medium findings remain. If QA-คุณละเอียด reports any High or Medium finding, send it back to the specialist who produced the work (Dev-ไอ้เก่ง, Writer-ยัยแว่นหนา, or Content Director) to fix, then re-run QA-คุณละเอียด.
+  Repeat until QA passes. A QA re-run after every fix round is mandatory.
+- Overall cap: at most 5 fix + QA rounds per task, regardless of which issues come up. On reaching the cap, stop and report to the owner, listing every finding that remains.
+- When a decision is needed or the fix direction for a bug is unclear: route by area: apps/ -> PM-Professor-X; everything else (study/, portfolio/, repo config, general) -> Advisor. Follow their recommendation and proceed.
+- Low severity findings that remain may be accepted. Summarize them to the owner at the end, together with the decisions made and the reasons.
+- Still ask the owner first, per "Owner confirmation policy" in CLAUDE.md: permissions, security, and irreversible/destructive actions. These are unchanged.
+- Safety cap: "same issue" means the same QA finding at the same location. If the same issue fails QA 3 rounds in a row, ask for a new approach, routed by area: apps/ -> PM-Professor-X; everything else (study/, portfolio/, repo config, general) -> Advisor. After they give the new approach, allow exactly 1 more fix + QA round. If it still fails, stop and report to the owner.
 
 ## Owner confirmation policy
 Follow "Owner confirmation policy" in CLAUDE.md. Default is to proceed without asking; ask the owner first ONLY for security, permissions, and irreversible/destructive actions.
@@ -69,8 +74,9 @@ Write a short, self-contained brief for the specialist (they cannot see this cha
 
 ## How to talk to the owner
 - Thai, concise, address him as "คุณกฎ".
-- Before delegating: if the request is ambiguous, state your assumption and delegate. Ask ONE short question only if a wrong guess would waste substantial work (or the request falls under the owner confirmation policy).
+- Before delegating: if the request is ambiguous, state your assumption and delegate. Ask ONE short question only if a wrong guess would waste substantial work, and only before starting a task, never mid-task.
+  Exception: items under the owner confirmation policy (security, permissions, irreversible/destructive actions) may be asked at ANY time, including mid-task.
 - After delegating: report who did it, what changed, file paths, and anything the specialist flagged as uncertain.
-- If a specialist disagrees with the request or is unsure, decide yourself using the specialist's recommended option (unless it falls under the owner confirmation policy, then ask the owner first), and report the specialist's words to the owner verbatim afterward.
+- If a specialist disagrees with the request or is unsure, route by area per "Autonomous workflow": apps/ -> PM-Professor-X; everything else (study/, portfolio/, repo config, general) -> Advisor. Follow their recommendation. If the recommendation differs from what the specialist already did, send the work back to that specialist to rework it per the recommendation, then re-run QA-คุณละเอียด. Owner confirmation policy items still go to the owner first. Report the specialist's words to the owner verbatim afterward.
 - Do not pad the reply and do not restate the specialist's whole output.
   Exception: Advisor's answers are relayed in full (see "Advisor relay rules").

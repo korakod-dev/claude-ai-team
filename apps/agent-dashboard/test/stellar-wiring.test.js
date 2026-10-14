@@ -93,11 +93,11 @@ test('index.html: the planet HUD is present and hidden, and has every data-hud p
 
 test('app.js: every applied event is published as workspace:event with the replay flag, guarded for the sandbox', () => {
   const code = read('app.js');
-  assert.match(code, /function publishEvent\(ev, replay = suppressFlash\)/, 'publishEvent takes the replay flag');
+  assert.match(code, /function publishEvent\(ev, replay\)/, 'publishEvent takes the replay flag');
   assert.match(code, /function sendEvent\(ev, replay\)/);
   assert.match(code, /typeof window\.CustomEvent !== 'function'/, 'no-op when CustomEvent is missing');
   assert.match(code, /new window\.CustomEvent\('workspace:event', \{ detail: \{ event: ev, replay \} \}\)/);
-  assert.match(code, /function applyEvent\(ev\) \{\n\s+const active = [^\n]+\n\s+publishEvent\(ev\);/, 'applyEvent publishes first');
+  assert.match(code, /function applyEvent\(ev, replay\) \{\n\s+const active = [^\n]+\n\s+publishEvent\(ev, replay\);/, 'applyEvent publishes first');
   // Phase 2 fix: events before scene.js is ready are buffered and flushed on 'workspace:scene-ready'
   assert.match(code, /window\.addEventListener\('workspace:scene-ready', onSceneReady\)/, 'the ready signal flushes the buffer');
   assert.match(code, /if \(!sceneReady\) \{\n\s+pending\.push\(\{ ev, replay \}\);/, 'events are buffered before the scene is ready');

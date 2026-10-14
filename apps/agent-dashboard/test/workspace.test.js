@@ -1287,15 +1287,16 @@ test('model labels: a failed or malformed /api/agents answer keeps the plain nam
   }
 });
 
-// ---------- View: page-open cutoff, clean start, clear button ----------
-// The server replays its last events to every new SSE client. The page must skip them by ts.
+// ---------- View: session replay, clear button ----------
+// The server replays the current session to every new SSE client; the page shows it (a reload keeps the data).
+// Only the clear button hides older events (by ts). Reload / session tests: test/workspace-reload-session.test.js.
 
 const PAGE_OPEN = Date.parse('2026-10-11T10:00:00.000Z'); // fake page-open time used below
 const isoAt = (ms) => new Date(ms).toISOString();
 
-test('view (a): an old event before page open is not shown, and a stale "queued:" event does not set the Secretary to PROCESSING', () => {
+test('view (a): an event from before page open (the server replay of the current session) is shown, and keeps its status', () => {
   const page = loadWorkspacePage(async () => ({}), PAGE_OPEN);
-  // Replayed history from before the page was opened
+  // Replayed history of the current session, from before the page was opened (a reload mid-task)
   page.push({
     ts: isoAt(PAGE_OPEN - 60000),
     agent: 'secretary',
@@ -1305,14 +1306,14 @@ test('view (a): an old event before page open is not shown, and a stale "queued:
   });
   page.push({ ts: isoAt(PAGE_OPEN - 1000), agent: 'app-dev', status: 'COMPLETED', message: 'old work', pipelineStep: 'appdev' });
 
-  assert.equal(page.log.children.length, 0, 'old history must not be logged');
-  assert.equal(page.nodes.router.dataset.status, 'IDLE', 'stale queue must not show PROCESSING');
-  assert.equal(page.nodes.router.badge.textContent, 'IDLE');
-  assert.equal(page.nodes.appdev.dataset.status, 'IDLE');
-  assert.equal(page.cards['app-dev'].dataset.status, 'IDLE');
+  assert.equal(page.log.children.length, 2, 'the replay is logged: a reload must not wipe the data');
+  assert.equal(page.nodes.router.dataset.status, 'PROCESSING', 'the Secretary is still PROCESSING until its end event');
+  assert.equal(page.nodes.router.badge.textContent, 'PROCESSING');
+  assert.equal(page.nodes.appdev.dataset.status, 'COMPLETED');
+  assert.equal(page.cards['app-dev'].dataset.status, 'COMPLETED');
 });
 
-test('view (b): a new event after page open is shown in the log and moves its pipeline node', () => {
+test('view (b): replayed events and new events both move the log and the pipeline node, in order', () => {
   const page = loadWorkspacePage(async () => ({}), PAGE_OPEN);
   page.push({ ts: isoAt(PAGE_OPEN - 60000), agent: 'user', status: 'COMPLETED', message: 'old command', pipelineStep: 'user' });
   page.push({
@@ -1323,12 +1324,12 @@ test('view (b): a new event after page open is shown in the log and moves its pi
     pipelineStep: 'router',
   });
 
-  assert.equal(page.log.children.length, 1, 'only the new event is logged');
+  assert.equal(page.log.children.length, 2, 'both events are logged');
   assert.match(textOf(page.log), /queued: ค้างในคิว 1 งาน/);
   assert.equal(page.nodes.router.dataset.status, 'PROCESSING');
   assert.equal(page.nodes.router.badge.textContent, 'PROCESSING');
   assert.match(page.nodes.router.msg.textContent, /cmd-new/);
-  assert.equal(page.nodes.user.dataset.status, 'IDLE', 'the old user event did not move the User node');
+  assert.equal(page.nodes.user.dataset.status, 'COMPLETED', 'the replayed user event moved the User node');
 });
 
 test('view (c): the clear button resets nodes and cards to IDLE and empties the log; older replays stay hidden', () => {

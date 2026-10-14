@@ -8,6 +8,12 @@
  *   - agent list pills
  *   - the live log (newest line at the bottom, auto-scroll)
  *   - the "ล้างหน้าจอ" (clear view) button: resets the view only, server history is not touched
+ *
+ * RELOAD / RECONNECT: the page keeps no state of its own. On every (re)connect the server sends a "session" event (an opaque key
+ * of the current Claude session) and then ALL buffered events of that session (lib/workspace.js attach()). They go through the
+ * same applyEvent() path as live events, so a reload rebuilds the log, the pipeline nodes, the agent cards and the derived status
+ * (an agent with an open task stays PROCESSING until its end event). The view is cleared in two cases only: the "ล้างหน้าจอ" button,
+ * and a "session" event whose key differs from the one this page already knows (a genuinely new session, onSession()).
  * The owner approval queue (approve / reject / copy command) was removed from this page.
  * This page does not call /api/queue and does not send anything to the server (no POST, no token).
  * The queue API and its files stay on the server; only the page UI was removed.
@@ -42,7 +48,7 @@
 
   const MAX_LOG_LINES = 300;      // older lines are removed from the DOM
   const SEEN_LIMIT = 1000;        // remembered event keys, used to skip replays after a reconnect
-  const REPLAY_GRACE_MS = 800;    // no handoff beams while the first replay burst arrives
+  const REPLAY_GRACE_MS = 800;    // no handoff beams while the replay burst after (re)connect arrives
   const NODE_MSG_MAX = 140;       // characters shown in a node's message box
   const DERIVED_REFRESH_MS = 5000; // how often the derived status is re-read (an instance times out without any event)
   const ACTIVITY_TEXT_MS = 1000;   // how often the activity text under each agent is re-read (a call ends or times out without an event)
@@ -108,6 +114,7 @@
   const seenKeys = new Set();
   const seenOrder = [];
   let suppressFlash = true;  // true during the replay burst right after (re)connect
+  let replayCutoff = 0;      // time of the latest (re)connect: an event older than this is history (replay), never a comet or a beam
   // Events for the Stellar layer that arrived before scene.js announced it is ready (see publishEvent)
   const PENDING_LIMIT = 1000;
   let sceneReady = false;
@@ -115,10 +122,13 @@
   // Registered now, while this classic script runs: scene.js (a module) runs BEFORE DOMContentLoaded, so it can announce
   // 'workspace:scene-ready' before init() runs. A listener added inside init() would miss that signal.
   if (typeof window.addEventListener === 'function') window.addEventListener('workspace:scene-ready', onSceneReady);
-  // Only events with ts >= showSince are shown. Set to the page-open time on load, and to the
-  // clear time by the "ล้างหน้าจอ" button. The server replays its last events to every new SSE
-  // client, so older events (history) are skipped here by their ts instead of being shown.
-  let showSince = Date.now();
+  // Only events with ts >= showSince are shown. 0 on load and after a new session (the server replays only the current session,
+  // so everything it sends is shown); the clear time after the "ล้างหน้าจอ" button, so the replay after a later reconnect does
+  // not bring back what the owner cleared.
+  let showSince = 0;
+  // Key of the session the shown data belongs to (from the "session" SSE event). undefined = no session event received yet.
+  // null is a valid key: the server knows no session yet.
+  let sessionKey;
   let modelSuffix = Object.create(null); // agent id -> "Sonnet-High" (from GET /api/agents; empty until it answers)
   // Instance tracking for the list view (see the header). Created lazily: the factory comes from scene.js (a module).
   let tracker = null;                    // stellar/store.js instance, or null when the factory is not there
@@ -237,7 +247,7 @@
   }
 
   /**
-   * True when the event happened before this view was opened or cleared (old history).
+   * True when the event happened before the view was last cleared with the clear button.
    * An event whose ts cannot be parsed is also skipped: its time is unknown, so it cannot be shown as new.
    */
   function isBeforeView(ev) {
@@ -318,7 +328,7 @@
    * Before scene.js is ready its 'workspace:event' listener does not exist yet, so the event is buffered here and
    * sent by onSceneReady(). Without this, the early replayed events were lost. The buffer is bounded.
    */
-  function publishEvent(ev, replay = suppressFlash) {
+  function publishEvent(ev, replay) {
     if (!sceneReady) {
       pending.push({ ev, replay });
       if (pending.length > PENDING_LIMIT) pending.shift();
@@ -333,9 +343,9 @@
     pending.splice(0, pending.length).forEach(({ ev, replay }) => sendEvent(ev, replay));
   }
 
-  /** Draw one handoff as a light beam in the 3D scene (not during the replay burst). */
-  function handoff(fromStep, toStep) {
-    if (suppressFlash) return;
+  /** Draw one handoff as a light beam in the 3D scene (not for a replayed event). */
+  function handoff(fromStep, toStep, replay) {
+    if (replay) return;
     const scene = getScene();
     if (scene) scene.handoff(fromStep, toStep);
   }
@@ -368,10 +378,13 @@
     elm.className = `${elm.dataset.kind} ${statusClass(status)}`;
   }
 
-  /** Apply one event to the pipeline node, the 3D body, the agent card, the beams and the log. */
-  function applyEvent(ev) {
+  /**
+   * Apply one event to the pipeline node, the 3D body, the agent card, the beams and the log.
+   * replay = true for history sent by the server after a (re)connect: it rebuilds the state but draws no beam or comet.
+   */
+  function applyEvent(ev, replay) {
     const active = ev.status === 'PROCESSING' || ev.status === 'WORKING';
-    publishEvent(ev); // Stellar layer (scene.js): HUD store and result / failure comets
+    publishEvent(ev, replay); // Stellar layer (scene.js): HUD store and result / failure comets
     // Status to show: derived from the open instances of the agent (the event status is the fallback), see the header
     const inst = instanceOf(ev.agent, ev.status);
     touched.add(ev.agent);
@@ -390,7 +403,7 @@
 
       // Work handed over to this node: draw the beam(s) that feed it
       if (active && HANDOFF_INTO[ev.pipelineStep]) {
-        HANDOFF_INTO[ev.pipelineStep].forEach(([fromStep, toStep]) => handoff(fromStep, toStep));
+        HANDOFF_INTO[ev.pipelineStep].forEach(([fromStep, toStep]) => handoff(fromStep, toStep, replay));
       }
     }
 
@@ -442,11 +455,12 @@
   /**
    * Reset the view to a clean state, as if nothing ran before: pipeline nodes and agent pills back to
    * IDLE, node messages and card tooltips cleared, 3D bodies idle and beams off, log emptied.
-   * Only events after now are shown from here on. Used on page load and by the clear button.
-   * The server history and its files are not touched.
+   * Used on page load, by the clear button and on a new session. The server history and its files are not touched.
+   * @param {number} since  only events with ts >= since are shown from here on (0 = show everything the server sends;
+   *                        Date.now() = the clear button: hide what was there before)
    */
-  function resetView() {
-    showSince = Date.now();
+  function resetView(since) {
+    showSince = since;
     tracker = null;                 // the instances start from zero as well (a new store is made on the next event)
     touched.clear();
     instanceCount.clear();
@@ -545,6 +559,43 @@
       .catch(() => { renderNames(); /* keep the plain names; the 3D chips show the names */ });
   }
 
+  /* ---------- session boundary ---------- */
+
+  /**
+   * A replay burst starts (SSE connected, or a new session announced: the server then re-sends its whole buffer). Events older
+   * than now, and everything inside the grace window, are history: they rebuild the state but draw no beam and no comet.
+   */
+  function startReplayWindow() {
+    replayCutoff = Date.now();
+    suppressFlash = true;
+    setTimeout(() => { suppressFlash = false; }, REPLAY_GRACE_MS);
+  }
+
+  /**
+   * The "session" SSE event: which Claude session the replay and the live events belong to. The first one of a page only
+   * records the key (a reload keeps the data the server is about to replay). A DIFFERENT key later means a genuinely new session
+   * (the server also dropped the old session's events): clear the view, the duplicate memory and the events still waiting for the
+   * scene, so nothing of the old session stays. The same key again (EventSource reconnect, server restart) changes nothing.
+   */
+  function onSession(msg) {
+    let body;
+    try {
+      body = JSON.parse(msg.data);
+    } catch (_err) {
+      return;
+    }
+    if (!body || typeof body !== 'object' || !('key' in body)) return;
+    const key = body.key === null || typeof body.key === 'string' ? body.key : null;
+    if (sessionKey !== undefined && key !== sessionKey) {
+      seenKeys.clear();
+      seenOrder.length = 0;
+      pending.length = 0;
+      startReplayWindow();   // the buffer of the new session follows on this connection: it is history, not live
+      resetView(0);
+    }
+    sessionKey = key;
+  }
+
   /* ---------- SSE connection ---------- */
 
   function connect() {
@@ -552,8 +603,7 @@
 
     es.onopen = () => {
       setConnection('live');
-      suppressFlash = true;
-      setTimeout(() => { suppressFlash = false; }, REPLAY_GRACE_MS);
+      startReplayWindow();
     };
 
     // Default SSE message = one workspace event
@@ -566,14 +616,18 @@
       }
       if (!isEvent(ev) || isDuplicate(ev)) return;
       trackEvent(ev);   // history too: an instance that started before this view opened must still be closed by its end event
-      // History (before this view was opened or cleared): only the HUD store takes it, as a replay (no comets).
-      // The log, the pipeline and the agent cards start clean and show only what happens after the page is open.
+      // Cleared by the owner (button): only the HUD store takes it, as a replay (no comets). Everything else of the current
+      // session (the replay after a reload or reconnect) is applied like a live event, so the status is rebuilt.
       if (isBeforeView(ev)) {
         publishEvent(ev, true);
         return;
       }
-      applyEvent(ev);
+      // History = sent by the server's replay (older than this connection) or inside the grace window right after connecting
+      applyEvent(ev, suppressFlash || Date.parse(ev.ts) < replayCutoff);
     };
+
+    // Session boundary: its own named channel, sent before the replay and again when a new session starts
+    if (typeof es.addEventListener === 'function') es.addEventListener('session', onSession);
 
     // Tool activity: its own named channel (not a workspace event, so it never reaches the log, the store or the replay)
     if (typeof es.addEventListener === 'function') es.addEventListener('activity', onActivity);
@@ -603,11 +657,11 @@
         info.appendChild(slot);
       }
     });
-    // Clean start: IDLE everywhere, empty log, and only events after this moment are shown
-    resetView();
+    // Initial state: IDLE everywhere and an empty log. The server replay of the current session then fills it (see the header)
+    resetView(0);
 
     // "ล้างหน้าจอ" (clear view): same reset as page load, without reloading the page
-    el.clear.addEventListener('click', resetView);
+    el.clear.addEventListener('click', () => resetView(Date.now()));
 
     if (typeof setInterval === 'function') {
       setInterval(refreshDerived, DERIVED_REFRESH_MS);

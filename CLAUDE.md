@@ -20,13 +20,15 @@ Owner: คุณกฎ (Korakod). Experienced developer + QA. Skip fundamentals;
 - Never invent facts. If a claim has no source or basis, say so. Cite sources for researched content.
 - If unsure: say so plainly, give 2-3 options, recommend one and say why, and proceed with it (unless "Owner confirmation policy" below applies).
 - If you disagree with the request: say so first, recommend one approach, and proceed with it (unless "Owner confirmation policy" below applies).
+- If PM-Professor-X's or Advisor's recommendation differs from what the specialist already did, the work goes back to that specialist to rework per the recommendation, then QA re-checks it.
 - No cross-day work: finish each task within the session; do not rely on state files.
 - agent-dashboard keeps data/events.jsonl as an owner-accepted exception to the "no cross-day state" rule.
 
 ## Owner confirmation policy
 - Default is to proceed. When there are options, pick the recommended one and continue; report the decision and the reason afterward.
-- Ambiguous request: state the assumption and proceed. Ask only if a wrong guess would waste substantial work.
+- Ambiguous request: state the assumption and proceed. Ask only if a wrong guess would waste substantial work, and only before starting a task, never mid-task. (Items in the ALWAYS-ask list below may be asked at any time, including mid-task.)
 - Commit and push to the private repo (origin main, plain push) may proceed without asking.
+- Workflow decisions (Dev/QA loops, fix direction, technical choices) are resolved inside the team via PM-Professor-X or Advisor; the owner is not asked.
 - ALWAYS ask the owner first for:
   - Security: secrets, credentials, API keys, auth; anything that publishes or exposes content publicly (publish-public runs, pushes to the public repo claude-ai-team); private data such as email or local paths; Cloudflare, DNS, or the domain korakod.dev.
   - Permissions: tool or permission settings, sandbox, and settings files.

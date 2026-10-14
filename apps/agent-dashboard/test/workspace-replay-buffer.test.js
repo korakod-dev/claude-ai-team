@@ -10,7 +10,7 @@
  *   2. its store is reset,
  *   3. 'workspace:scene-ready' is dispatched.
  * Checks: events before the ready signal are buffered and sent in order after it (nothing lost), replayed history
- * reaches the store as a replay (no comets), the log shows only the events after the page was opened, duplicates
+ * reaches the store as a replay (no comets) AND is shown in the log (a reload restores the session), duplicates
  * are sent once, live events after the ready signal go straight through, and the buffer is bounded.
  * No server, no files, no real data. Run: npm test
  */
@@ -164,7 +164,7 @@ test('early events: nothing is sent before the scene is ready, then everything i
   assert.equal(store.snapshot('qa-reviewer').status, 'WORKING', 'the other agent is in the store too');
 });
 
-test('history reaches the HUD store but never the log or the pipeline view', async () => {
+test('history (the server replay of the current session) reaches the HUD store AND the log', async () => {
   const { createStore } = await import(STORE_URL);
   const page = loadPage();
   const store = createStore();
@@ -172,7 +172,7 @@ test('history reaches the HUD store but never the log or the pipeline view', asy
   page.win.dispatchEvent(new page.win.CustomEvent('workspace:scene-ready', { detail: { active: true } }));
   page.open();
   page.push(history('study-writer', 'COMPLETED', 'done earlier', 5));
-  assert.equal(page.log.children.length, 0, 'the log starts clean (history is not shown there)');
+  assert.equal(page.log.children.length, 1, 'the replayed line is in the log: a reload must not wipe the session data');
   assert.equal(store.snapshot('study-writer').logs.length, 1, 'but the HUD store has the history line');
 });
 

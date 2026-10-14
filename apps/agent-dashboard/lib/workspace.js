@@ -44,6 +44,25 @@
  * belong to was already closed by id (then its COMPLETED would only flip the agent); it is never dropped just because a
  * sibling started.
  *
+ * SESSIONS (reload safety, EPOCH model): Claude sessions can run at the same time (the secretary and a second window), so the
+ * hub does not follow "the latest session_id". It keeps one EPOCH = a group of session ids that overlap in time:
+ *   epoch = { key: opaque key of the FIRST session id, startMs, members: Map<session_id, { lastSeenMs, ended }> }.
+ * Rules, per hook record with a usable session_id ('' and 'unknown' are ignored), in file order:
+ *   - SessionStart of a MEMBER (resume / compact / a repeated start): the member is live again. Nothing is cleared or sent.
+ *   - SessionStart of a NON-member while some other member is LIVE (not ended, and seen less than SESSION_IDLE_MS before): the new
+ *     session JOINS the epoch (a concurrent session). Nothing is cleared or sent.
+ *   - SessionStart of a non-member when NO member is live (all ended, or all idle for SESSION_IDLE_MS or more; this includes
+ *     /clear = SessionEnd + SessionStart): a NEW epoch. The buffered hook events, the held stops and the hook-side state of the
+ *     old epoch are dropped, and the clients are told once with the named SSE event "session" followed by the buffer.
+ *   - SessionEnd of a member marks it ended. Any other record of a member refreshes its lastSeenMs; a record of a session that is
+ *     not a member joins the epoch (it never starts an epoch and never clears anything: a late record of an old session is kept).
+ * Every new SSE client first gets the "session" event (an opaque key, never the raw session_id) and then the WHOLE buffer in time
+ * order, so a page reload or an EventSource reconnect rebuilds the same data and the same per-agent status (an open task stays
+ * PROCESSING until its end event). The browser clears its view only when the session key changes (public/workspace/app.js).
+ * KNOWN LIMITATION: events of concurrent sessions share one view. With two sessions at once the Secretary node shows the last
+ * event of either session, and a stop without an id (`~`, FIFO) may close a task of the same agent type that belongs to the other
+ * session.
+ *
  * Both sources feed the same stream, so the pipeline and the log update from one event stream.
  * Auth (Origin, optional token) is checked in server.js before these functions are called.
  */
@@ -62,8 +81,23 @@ const WATCH_INTERVAL_MS = 700;   // file poll interval (fs.watchFile)
 const DEBOUNCE_MS = 150;         // coalesce bursts of writes into one read
 const PING_MS = 15000;           // SSE keep-alive comment interval
 const QUEUE_CHECK_MS = 2000;     // how often the queue folder is re-counted (catches changes made outside HTTP)
-const BUFFER_SIZE = 200;         // events kept in memory for new SSE clients
-const REPLAY_COUNT = 100;        // events sent to a client right after it connects
+// Events of the CURRENT epoch (all concurrent sessions together) kept in memory for new SSE clients. Measured on
+// data/events.jsonl (2026-10-14): the busiest of 52 sessions made 516 shown events (prompts, dispatches, starts, stops), so 200
+// could push the start of a still-running task out of the buffer after a reload. 2000 is about 2x that busiest session for each
+// of two concurrent sessions (an epoch holds all of them); tool-start log lines are not buffered (isToolStartLog).
+const BUFFER_SIZE = 2000;
+const REPLAY_COUNT = BUFFER_SIZE; // a new client gets the whole buffer (= the whole current epoch), see attach()
+// Sessions of one epoch: a SessionStart opens a NEW epoch only when no member is live. A member is live until its SessionEnd, or
+// until it was silent for this long (event time). It must be MUCH longer than every window that bridges a stop to its session
+// (TOOL_USE_WAIT_MS 8 s, TYPE_FAILURE_MARKER_MS and LATE_POST_MS 60 s): a new epoch clears the held stops and failure markers,
+// which is only safe when none of them can still belong to a live member (test/workspace-reload-session.test.js checks the ratio).
+// Measured on data/events.jsonl (2026-10-14, 66 sessions, 325 closed Agent calls, 316 closed sub-agent runs): the largest gap
+// between two consecutive records of ONE session while an Agent call / sub-agent run was open is 33.2 min (next: 28.4, 24.9,
+// 23.9 min; the session logs nothing between a long SubagentStart and its SubagentStop). So 30 min would wrongly end a live
+// session that is waiting for a long sub-agent; 60 min is about 1.8x the largest gap seen. Cost: an abandoned session without SessionEnd keeps
+// the epoch open for an hour, so a new session in that hour joins it instead of clearing the view.
+const SESSION_IDLE_MS = 60 * 60 * 1000;
+const MAX_EPOCH_MEMBERS = 200;    // session ids remembered per epoch (the oldest is dropped first)
 // How long a SubagentStop of a SYNC run waits for its PostToolUse(Agent), which carries the tool_use_id (lib/stop-hold.js).
 // Measured on data/events.jsonl (2026-10-12, 82 sync stops): p50 38 ms, p90 48 ms, p99 4.0 s, max 4.0 s.
 // 8 s gives about 2x the largest gap seen. A stop whose PostToolUse does not come in time is released without an id (FIFO, `~`).
@@ -193,6 +227,12 @@ function createWorkspaceHub(opts) {
   const hookLinks = new Map();
   const buffer = [];   // { src: 'hook' | 'ws', event } - the last BUFFER_SIZE events
   const clients = new Set(); // { res }
+  // The current epoch (see the SESSIONS header): { key: opaque id for the browser, startMs: event time of the SessionStart that
+  // opened it (or null), members: Map<session_id, { lastSeenMs, ended }> }. null until the first SessionStart is read.
+  // Only a SessionStart record of a session with no live epoch member opens a new one.
+  let epoch = null;
+  // Set when a pullHook() opened a new epoch; the clients are told once at the end of that pull (flushSession).
+  let sessionChanged = false;
   // Instance links (one Agent tool call = one instance). Needed when several instances of one agent type run at once.
   //   pendingStarts: PreToolUse(Agent) records whose SubagentStart has not been seen yet, oldest first:
   //                  { toolUseId, agentId, sessionId, atMs, tainted }. Starts are matched within session_id + agent type.
@@ -253,8 +293,25 @@ function createWorkspaceHub(opts) {
     reportFailure(`read:${err.code}`, `[workspace] could not read the secretary queue at start: ${err.message}`);
   }
 
-  /** Keep the event in the replay buffer (bounded). */
+  /** Event time in ms of a workspace event, or NaN. */
+  function eventTimeMs(event) {
+    return typeof event.ts === 'string' ? Date.parse(event.ts) : NaN;
+  }
+
+  /**
+   * True when an event belongs to the current epoch's replay. Workspace-file events (queue / POST) have no session id, so they
+   * are placed by time: older than the start of the current epoch = history of an earlier epoch. An event with no usable time,
+   * or no known epoch start, is kept. (Hook events are never filtered: they carry a session id and are all kept.)
+   */
+  function inCurrentSession(event) {
+    if (!epoch || epoch.startMs === null) return true;
+    const t = eventTimeMs(event);
+    return Number.isNaN(t) || t >= epoch.startMs;
+  }
+
+  /** Keep the event in the replay buffer (bounded). Workspace-file events of an earlier epoch are not kept. */
   function remember(src, event) {
+    if (src === 'ws' && !inCurrentSession(event)) return;
     buffer.push({ src, event });
     if (buffer.length > BUFFER_SIZE) buffer.splice(0, buffer.length - BUFFER_SIZE);
   }
@@ -324,6 +381,106 @@ function createWorkspaceHub(opts) {
         client.res.end();
       }
     }
+  }
+
+  /** Opaque browser-side key of a session: a short hash, so the raw Claude session_id never leaves the server. */
+  function sessionKeyOf(id) {
+    return crypto.createHash('sha256').update(id).digest('hex').slice(0, 12);
+  }
+
+  /** The named SSE message that tells a client which epoch its replay belongs to ("event: session"). */
+  function sessionChunk() {
+    return `event: session\ndata: ${JSON.stringify({ key: epoch ? epoch.key : null })}\n\n`;
+  }
+
+  /** Remember a session in the epoch (bounded: the oldest member is dropped first). Returns the member record. */
+  function joinEpoch(id, atMs) {
+    const member = { lastSeenMs: atMs, ended: false };
+    epoch.members.set(id, member);
+    while (epoch.members.size > MAX_EPOCH_MEMBERS) epoch.members.delete(epoch.members.keys().next().value);
+    return member;
+  }
+
+  /** True when the epoch member still counts as running at event time atMs (null = unknown time: assume live). */
+  function isLive(member, atMs) {
+    return !member.ended && (atMs === null || member.lastSeenMs === null || atMs - member.lastSeenMs < SESSION_IDLE_MS);
+  }
+
+  /**
+   * Update the epoch from one hook record (see the SESSIONS header). Called for every record, in file order, after the held stops
+   * that ended before this record were released and before the record is tracked or converted. atMs = event time (null = none).
+   * A new epoch only sets sessionChanged: the clients are told once per pull in flushSession().
+   */
+  function trackSession(rec, atMs) {
+    const id = sessionOf(rec);
+    if (!id || id === 'unknown') return;   // no usable id: cannot tell sessions apart
+    const member = epoch ? epoch.members.get(id) : undefined;
+    // A stale record must not move the last-seen time back, and a record without a time leaves it as it was
+    const seen = (m) => { if (atMs !== null && (m.lastSeenMs === null || atMs > m.lastSeenMs)) m.lastSeenMs = atMs; };
+
+    if (rec.event === 'SessionStart') {
+      if (member) {                        // resume / compact / repeated start of a known session
+        member.ended = false;
+        seen(member);
+        return;
+      }
+      if (epoch && [...epoch.members.values()].some((m) => isLive(m, atMs))) {
+        joinEpoch(id, atMs);               // a concurrent session: same epoch, nothing cleared
+        return;
+      }
+      // No live member: a NEW epoch. Clearing the held stops is safe because of the timing invariant: a stop is held for at most
+      // TOOL_USE_WAIT_MS (8 s) and markers / late-post entries live LATE_POST_MS / TYPE_FAILURE_MARKER_MS (60 s), all far below
+      // SESSION_IDLE_MS (60 min), and expireDue(atMs) already ran for this record. So whatever is still held belongs to a
+      // session that has ended (or been idle for SESSION_IDLE_MS) and must not close a task of the new epoch.
+      epoch = { key: sessionKeyOf(id), startMs: atMs, members: new Map() };
+      joinEpoch(id, atMs);
+      stopHold.clear();
+      forgetSource('hook');                // every buffered hook event belongs to an earlier epoch
+      for (let i = buffer.length - 1; i >= 0; i -= 1) {
+        if (!inCurrentSession(buffer[i].event)) buffer.splice(i, 1);   // workspace events from before this epoch
+      }
+      sessionChanged = true;
+      return;
+    }
+    if (rec.event === 'SessionEnd') {
+      if (member) { member.ended = true; seen(member); }
+      return;
+    }
+    // Any other record: a member is alive; an unknown session joins (it never opens an epoch and never clears anything)
+    if (member) seen(member);
+    else if (epoch) joinEpoch(id, atMs);
+  }
+
+  /**
+   * Tell every client about the current epoch once: the "session" event, then the whole buffer in time order (what attach() sends
+   * to a new client). The chunk and the sorted buffer are built once, outside the client loop. Dead clients are dropped.
+   */
+  function flushSession() {
+    const chunk = sessionChunk();
+    const lines = sortedBuffer().map((item) => `data: ${JSON.stringify(item.event)}\n\n`);
+    for (const client of [...clients]) {
+      try {
+        client.res.write(chunk);
+        for (const line of lines) client.res.write(line);
+      } catch (_err) {
+        clients.delete(client);
+        client.res.end();
+      }
+    }
+  }
+
+  /**
+   * The buffer in event-time order for a replay (stable: equal or unreadable times keep their buffer order). The two sources are
+   * read one after the other at start, so file order alone would put every workspace-file event after every hook event.
+   */
+  function sortedBuffer() {
+    return buffer
+      .map((item, index) => ({ item, index, t: eventTimeMs(item.event) }))
+      .sort((a, b) => {
+        if (Number.isNaN(a.t) || Number.isNaN(b.t) || a.t === b.t) return a.index - b.index;
+        return a.t - b.t;
+      })
+      .map((x) => x.item);
   }
 
   /** agent_id (hook field) -> task id of its instance, for a TRUSTED link only (a FIFO guess is not used for attribution). */
@@ -485,12 +642,15 @@ function createWorkspaceHub(opts) {
     if (reset) {
       stopHold.clear();            // held stops came from the old file content
       pendingStarts.length = 0;    // so did the Agent calls that waited for a start
+      epoch = null;                // the epoch is found again from the SessionStart records of the re-read file
       forgetSource('hook');
     }
+    sessionChanged = false;
     for (const rec of added) {
       const t = recordTimeMs(rec);
       const at = t === null ? undefined : t;
       if (t !== null) stopHold.expireDue(t);   // waits that ended before this record's time
+      trackSession(rec, t);                    // epoch of concurrent sessions (see the SESSIONS header)
       trackInstance(rec, t);                   // tool_use_id <-> agent_ref links (before the record is used below)
       // PostToolUse(Agent) links agent_ref -> tool_use_id inside convertHookRecord; it also closes any held stop of that agent
       if (rec.event === 'PostToolUse' && isDelegationTool(rec.tool_name)
@@ -532,6 +692,7 @@ function createWorkspaceHub(opts) {
       emit('hook', event, isToolStartLog(rec));
     }
     stopHold.expireDue(nowMs());   // live case: no later record may come to end the wait
+    if (sessionChanged) flushSession();   // one "session" message + replay per client, however many epochs this batch had
   }
 
   // True after a poll that threw (for example EACCES or EISDIR on an events file). Only used to label the queue timer's
@@ -598,14 +759,17 @@ function createWorkspaceHub(opts) {
 
   /**
    * Attach an SSE client. The caller has already written the 200 + event-stream headers.
-   * The client first receives the last REPLAY_COUNT events, then live events.
+   * The client first receives the "session" event, then the buffered events of the current epoch (at most REPLAY_COUNT),
+   * then live events.
    */
   function attach(req, res) {
     const client = { res };
     clients.add(client);
     res.on('error', () => clients.delete(client));
     res.write('retry: 2000\n\n');
-    for (const item of buffer.slice(-REPLAY_COUNT)) sseSend(res, item.event);
+    // Which epoch the replay belongs to first, then the whole epoch in time order (see the header)
+    res.write(sessionChunk());
+    for (const item of sortedBuffer().slice(-REPLAY_COUNT)) sseSend(res, item.event);
     req.on('close', () => clients.delete(client));
   }
 
@@ -1036,4 +1200,5 @@ function createWorkspaceHub(opts) {
 
 module.exports = {
   createWorkspaceHub, validateCommand, safeFileName, MAX_FILE_BYTES, TOOL_USE_WAIT_MS, TYPE_FAILURE_MARKER_MS, LATE_POST_MS,
+  SESSION_IDLE_MS,
 };
