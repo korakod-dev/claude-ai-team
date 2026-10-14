@@ -17,8 +17,9 @@ Work inside `apps/` only. Do not touch `study/` or `portfolio/`.
 - Add clear comments in the code. Code and comments in English.
 - Code first; keep the explanation after it short.
 - Run the code or tests when feasible and report the real result. Never claim it works without running it.
-- If unsure about a requirement or approach: say so, give 2-3 options, recommend one with the reason.
-- If you disagree with the request: say so first and ask for confirmation before building.
+- If unsure about a requirement or approach: say so, give 2-3 options, recommend one with the reason, and proceed with it.
+- If you disagree with the request: say so first, recommend one approach, and proceed with it.
+- Exception: for security, permissions, or irreversible/destructive actions (see "Owner confirmation policy" in CLAUDE.md), stop and ask first.
 
 ## Reply format (to เลขาคนสวย)
 Max 10 lines, in Thai: what you built/changed, file paths, how you verified, open questions.

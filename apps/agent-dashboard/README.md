@@ -1,7 +1,7 @@
 # Agent Dashboard
 
 Dashboard แบบ live สำหรับ AI team agents (secretary, pm, app-dev, qa-reviewer, study-writer,
-portfolio-writer และ subagents ของแต่ละตัว) แสดงว่าใครมอบหมายงานให้ใคร และสถานะปัจจุบัน
+portfolio-writer, advisor และ subagents ของแต่ละตัว) แสดงว่าใครมอบหมายงานให้ใคร และสถานะปัจจุบัน
 (running / done / failed / stale) เป็นกราฟ ข้อมูลมาจาก Claude Code hooks
 
 - ใช้ Node.js built-ins เท่านั้น (ไม่มี dependency, ไม่มี framework, ไม่มี build step)
@@ -17,9 +17,9 @@ portfolio-writer และ subagents ของแต่ละตัว) แส�
 ภาพทั้งหมดสร้างจาก **event สังเคราะห์ (demo) เท่านั้น** ไม่ใช่ข้อมูลจริงของใคร: รัน server ด้วย `DASHBOARD_PORT=0` และไฟล์ข้อมูลในโฟลเดอร์ชั่วคราว,
 เขียน hook record ที่ผ่าน `lib/normalize.js` ตัวเดียวกับของจริง แล้วถ่ายด้วย headless Chrome (SwiftShader, ซอฟต์แวร์) FPS ในภาพจึงไม่ใช่ตัวแทนของ GPU จริง
 
-**1. ภาพรวม:** ดวงอาทิตย์ (เลขาคนสวย), ดาวของเจ้าของ (คุณกฎ, มุมซ้ายบน), ดาวเคราะห์ของทีมทั้ง 5 ดวง, หลุมดำ (ขวาบน) และป้ายชื่อที่ต่อท้ายด้วย `(Model-Effort)` ที่อ่านจาก frontmatter ของ `.claude/agents/*.md` ในภาพมีดาวหาง dispatch และ shock ring ของดวงอาทิตย์ด้วย
+**1. ภาพรวม:** ดวงอาทิตย์ (เลขาคนสวย), ดาวของเจ้าของ (คุณกฎ, มุมซ้ายบน), ดาวเคราะห์ของทีมทั้ง 6 ดวง, หลุมดำ (ขวาบน) และป้ายชื่อที่ต่อท้ายด้วย `(Model-Effort)` ที่อ่านจาก frontmatter ของ `.claude/agents/*.md` ในภาพมีดาวหาง dispatch และ shock ring ของดวงอาทิตย์ด้วย
 
-![Overview: sun, owner star, five team planets, black hole, model-effort labels](docs/images/dashboard-overview.png)
+![Overview: sun, owner star, six team planets, black hole, model-effort labels](docs/images/dashboard-overview.png)
 
 **2. Instance ที่ทำงานพร้อมกัน (moons):** Dev-ไอ้เก่ง มี 6 instance จึงแสดงดวงจันทร์ 4 ดวง (`MAX_MOONS`) และชิป `+2` ใต้ป้าย HUD ด้านขวาแสดงงานทั้ง 6 และแถว `Micro-agents (moons)` = 6 รายการ agent มี `×6`
 
@@ -101,7 +101,7 @@ curl -X POST http://127.0.0.1:4317/api/events \
 
 | Field | Required | Values |
 | :- | :- | :- |
-| `agent` | yes | agent id (`secretary`, `pm`, `app-dev`, `qa-reviewer`, `study-writer`, `portfolio-writer`) or a display name (`เลขาคนสวย`, `PM-Professor-X`, `Dev-ไอ้เก่ง`, `QA-คุณละเอียด`, `Writer-ยัยแว่นหนา`, `Content Director`; case-insensitive). The OLD names stay as aliases so old events in `data/events.jsonl` still map to the right planet: `ป้าแจ๋ว`/`เลขา` (secretary), `PM`, `เก่ง`, `ละเอียด`, `หนอนหนังสือ`, `กวีโปรเจกต์` |
+| `agent` | yes | agent id (`secretary`, `pm`, `app-dev`, `qa-reviewer`, `study-writer`, `portfolio-writer`, `advisor`) or a display name (`เลขาคนสวย`, `PM-Professor-X`, `Dev-ไอ้เก่ง`, `QA-คุณละเอียด`, `Writer-ยัยแว่นหนา`, `Content Director`, `Advisor`; case-insensitive). The OLD names stay as aliases so old events in `data/events.jsonl` still map to the right planet: `ป้าแจ๋ว`/`เลขา` (secretary), `PM`, `เก่ง`, `ละเอียด`, `หนอนหนังสือ`, `กวีโปรเจกต์` |
 | `status` | yes | `IDLE`, `PROCESSING`, `WORKING`, `COMPLETED`, `ERROR` (lower case is accepted) |
 | `message` | yes | text, max 500 characters (longer text is cut) |
 | `pipelineStep` | no | `user`, `router`, `pm`, `appdev`, `qa`, `study`, `portfolio`. If omitted, taken from the agent (for example `Dev-ไอ้เก่ง` -> `appdev`) |
@@ -204,9 +204,9 @@ Event log: the workspace log is `data/workspace-events.jsonl` (`config.WORKSPACE
 | ในฉาก | ความหมาย | แหล่งข้อมูล (event) |
 | :- | :- | :- |
 | ดวงอาทิตย์ | เลขาคนสวย (secretary, main agent) | agent `secretary` / step `router` |
-| ดาวของคุณกฎ (มุมซ้ายบน นอกวงโคจรนอกสุด ใหญ่กว่าดาวเคราะห์ ~2.3 เท่า) | คุณกฎ (owner, User Prompt) ผู้ส่ง prompt แรกให้เลขาคนสวย อยู่นอกระบบ agent (ตำแหน่ง `OWNER_POSITION` ใน `scene.js`, ไม่ใช่ fit point ของกล้อง, มี test ตรวจว่าอยู่ในเฟรม) | agent `user` / step `user`; ดาวหาง dispatch จากดาวนี้ไปดวงอาทิตย์ยังทำงานเหมือนเดิม |
-| ดาวเคราะห์ 5 ดวง | PM-Professor-X (`pm`, planner, ดาวสีชมพู วงในสุด), Dev-ไอ้เก่ง (`app-dev`), QA-คุณละเอียด (`qa-reviewer`), Writer-ยัยแว่นหนา (`study-writer`), Content Director (`portfolio-writer`) | แต่ละ agent ในทีม (ดาวดวงละ agent) |
-| ดาวเคราะห์ dynamic (สูงสุด 4 ดวง) | agent อื่นที่ไม่อยู่ในทีม 5 ตัว (นอกจากเลขา) (เช่น sub-agent ชื่ออื่น) | agent ใดก็ได้ที่มี event ครั้งแรก: สร้างดาวให้อัตโนมัติ (key `dyn:<agent>`) |
+| ดาวของคุณกฎ (มุมซ้ายบน นอกวงโคจรนอกสุดของทีม ใหญ่กว่าดาวเคราะห์ ~2.3 เท่า) | คุณกฎ (owner, User Prompt) ผู้ส่ง prompt แรกให้เลขาคนสวย อยู่นอกระบบ agent (ตำแหน่ง `OWNER_POSITION` ใน `scene.js`, ไม่ใช่ fit point ของกล้อง, มี test ตรวจว่าอยู่ในเฟรม) | agent `user` / step `user`; ดาวหาง dispatch จากดาวนี้ไปดวงอาทิตย์ยังทำงานเหมือนเดิม |
+| ดาวเคราะห์ 6 ดวง (ทีมมี 6 specialist) | PM-Professor-X (`pm`, planner, ดาวสีชมพู วงในสุด), Dev-ไอ้เก่ง (`app-dev`), QA-คุณละเอียด (`qa-reviewer`), Writer-ยัยแว่นหนา (`study-writer`), Content Director (`portfolio-writer`), Advisor (`advisor`, ถาม-ตอบทั่วไป read-only, ดาวสีเขียวอมฟ้า teal วงนอกสุดของทีม) | แต่ละ agent ในทีม (ดาวดวงละ agent) |
+| ดาวเคราะห์ dynamic (สูงสุด 4 ดวง) | agent อื่นที่ไม่อยู่ในทีม 6 ตัว (นอกจากเลขา) (เช่น sub-agent ชื่ออื่น) | agent ใดก็ได้ที่มี event ครั้งแรก: สร้างดาวให้อัตโนมัติ (key `dyn:<agent>`) |
 | ดาวหางพุ่งจากดวงอาทิตย์ -> ดาวเคราะห์ | มอบหมายงาน (`PROCESSING` ของ sub-agent) | ดวงอาทิตย์วาบและส่งวงกระเพื่อม (shock ring) |
 | ดาวหางพุ่งจากดาวเคราะห์ -> ดวงอาทิตย์ | ผลลัพธ์ (`COMPLETED` ของ sub-agent) | |
 | หลุมดำ (มุมขวาบน, มองเห็นตลอดเวลา) | งานที่ล้มเหลว (`ERROR`) ถูกดูดเข้าหลุมดำ | แสดงอย่างเดียว ไม่มี retry ในเฟสนี้ |
@@ -214,7 +214,7 @@ Event log: the workspace log is `data/workspace-events.jsonl` (`config.WORKSPACE
 สิ่งที่เห็นในฉาก (Phase 2):
 - **พื้นหลัง** (`stellar/backdrop.js`, `stellar/shaders.js`): ท้องฟ้าอวกาศสีเข้มพร้อมเนบิวลาจางที่ลอยช้า ๆ และแถบกาแล็กซี, ดาว 3 ชั้น (far / mid / near) ที่เลื่อนไม่เท่ากันเมื่อกล้องหมุน (parallax) และกระพริบ, ฝุ่นอวกาศ 900 เม็ดที่ลอยด้วย shader (ไม่มีงานคำนวณฝั่ง CPU ต่อเฟรม)
 - **ดวงอาทิตย์** (`stellar/bodies.js`): ใหญ่ขึ้น (`SUN_RADIUS` 2.4), พื้นผิว plasma จาก shader ที่เคลื่อนไหว, chromosphere, corona, halo, lens streak; เมื่อส่งงานจะ flare และมี shock ring ขยายออก
-- **ดาวเคราะห์**: พื้นผิว procedural ต่างกันตาม agent (`PLANET_THEME` ใน `scene.js`): PM-Professor-X = ทวีปสีชมพูบนวงในสุด (ดาว `pm` ใช้พื้นผิว continents ที่สีไม่ซ้ำกับดาวอื่น), Dev-ไอ้เก่ง = วงจรบนแผ่นสีน้ำเงิน, QA-คุณละเอียด = แถบก๊าซพร้อมจุดพายุ, Writer-ยัยแว่นหนา = มหาสมุทร/พื้นดิน/เมฆ, Content Director = หินอ่อนสีม่วง
+- **ดาวเคราะห์**: พื้นผิว procedural ต่างกันตาม agent (`PLANET_THEME` ใน `scene.js`): PM-Professor-X = ทวีปสีชมพูบนวงในสุด (ดาว `pm` ใช้พื้นผิว continents ที่สีไม่ซ้ำกับดาวอื่น), Dev-ไอ้เก่ง = วงจรบนแผ่นสีน้ำเงิน, QA-คุณละเอียด = แถบก๊าซพร้อมจุดพายุ, Writer-ยัยแว่นหนา = มหาสมุทร/พื้นดิน/เมฆ, Content Director = หินอ่อนสีม่วง, Advisor = หินอ่อนสี teal (ใช้พื้นผิวชนิดเดียวกับ Content Director แต่สีต่างกัน)
   พื้นผิวถูกแสงจากดวงอาทิตย์ส่องจริง (ด้านกลางวัน, เส้นแบ่งกลางวัน-กลางคืน, ด้านกลางคืนมืด), มี atmosphere rim และเส้น orbit สีของดาวดวงนั้น
 - **สถานะดาวเคราะห์** (กฎอยู่ใน `stellar/model.js`):
   - `IDLE`: หมุนช้า, halo สีฟ้าอ่อนนุ่ม ๆ (`COMPLETED` วาบสีเหลืองอ่อนช่วงสั้น)
@@ -282,8 +282,15 @@ Event log: the workspace log is `data/workspace-events.jsonl` (`config.WORKSPACE
 
 **PM-Professor-X (planner):** agent `pm` (`.claude/agents/pm.md`, `name: PM-Professor-X`, Opus-High, read-only) เป็นสมาชิกทีมลำดับที่ 5: step `pm`, ดาวเคราะห์สีชมพู (`0xf472b6`) บนวงโคจรในสุด (รัศมี 5.54), ป้าย `PM-Professor-X (Opus-High) · planner`, node/card ใน `index.html`
 - event ของ PM-Professor-X ผูกกับ `pm` ผ่าน `AGENT_MAP` ใน `lib/workspace-adapter.js` (ชื่อ `PM-Professor-X` ตัวพิมพ์เล็ก/ใหญ่ใช้ได้ เพราะ `resolveAgent` แปลงเป็นตัวพิมพ์เล็กก่อน) ทั้ง `agent_type: "PM-Professor-X"` (event ของ PM-Professor-X เอง) และ `subagent_type: "PM-Professor-X"` (เลขาคนสวยมอบหมายงาน หรือ dispatch ล้มเหลว)
-- เพิ่มวงโคจรที่ 5 ทำให้วงนอกสุดของทีมขยายจาก 17.27 เป็น 21.14 หน่วย: ระยะกล้องที่พอดีกรอบเพิ่มขึ้น (ดาวดูเล็กลงในมุมมองเริ่มต้น), `OWNER_POSITION` ขยับ ×1.21 เป็น `[-15.7, 7.9, -16.9]` (ยังผ่าน test กรอบภาพและ clearance, เหลือขอบว่างประมาณ 15 %), `BLACK_HOLE_HOME` ขยับเป็น `(18, 6, -8.5)` ยังอยู่ฝั่งขวา ยังไม่ได้ดูบนจอจริง (ตรวจด้วย test และการคำนวณใน Node เท่านั้น)
+- เพิ่มวงโคจรที่ 5 ทำให้วงนอกสุดของทีมขยายจาก 17.27 เป็น 21.14 หน่วย: ระยะกล้องที่พอดีกรอบเพิ่มขึ้น (ดาวดูเล็กลงในมุมมองเริ่มต้น), `OWNER_POSITION` ขยับ ×1.21 เป็น `[-15.7, 7.9, -16.9]` (ค่านี้ถูกขยับอีกตอนเพิ่ม Advisor ดูหัวข้อ Advisor; ตอนนั้นยังผ่าน test กรอบภาพและ clearance, เหลือขอบว่างประมาณ 15 %), `BLACK_HOLE_HOME` ขยับเป็น `(18, 6, -8.5)` ยังอยู่ฝั่งขวา ยังไม่ได้ดูบนจอจริง (ตรวจด้วย test และการคำนวณใน Node เท่านั้น)
 - ดาวใหม่ใช้พื้นผิวชนิด `continents` ร่วมกับ Writer-ยัยแว่นหนา แต่สีต่างกัน (ชมพูเทียบกับเขียว) เพื่อไม่ต้องเพิ่ม shader
+
+**Advisor (ถาม-ตอบทั่วไป):** agent `advisor` (`.claude/agents/advisor.md`, `name: Advisor`, Opus-High, read-only) เป็นสมาชิกทีมลำดับที่ 6: step `advisor`, ดาวเคราะห์สี teal (`0x2dd4bf`) บนวงโคจรนอกสุดของทีม (รัศมี 25.07), ป้าย `Advisor (Opus-High) · read-only Q&A`, node/card ใน `index.html`
+- event ของ Advisor ผูกกับ `advisor` ผ่าน `AGENT_MAP` ใน `lib/workspace-adapter.js` (`Advisor` ตัวพิมพ์เล็ก/ใหญ่ใช้ได้) และ step `advisor` อยู่ใน `PIPELINE_STEPS` ทั้ง `agent_type: "Advisor"` และ `subagent_type: "Advisor"` ไปที่ดาวนี้ ไม่ใช่ดาว dynamic. Advisor ไม่มีชื่อเดิม จึงไม่มี alias
+- ฝั่งหน้าเว็บ: `stellar/model.js` (`PLANET_STEPS`, `STEP_AGENT`, ป้าย), `scene.js` (`SATELLITE_CONFIG`, `PLANET_THEME`, `SATELLITE_EXTENT`, `SATELLITE_ORBIT_ORDER`, `LABEL_SIDE`, `LABEL_ORDER`), `app.js` (`HANDOFF_INTO`: เลขาคนสวย -> advisor, `LABEL`, `STEP_AGENT`), `index.html` (node และ card), `style.css` (สีป้ายและสีชื่อใน log)
+- พื้นผิวใช้ชนิด `marble` ร่วมกับ Content Director แต่เป็นสี teal (ไม่ใช้ส้ม/แดง เพราะชนกับสีดวงอาทิตย์และ aura ของ ERROR) ตำแหน่งเริ่มต้นอยู่ด้านหน้ากลางจอ (มุม 1.571 rad)
+- เพิ่มวงโคจรที่ 6 ทำให้วงนอกสุดของทีมขยายจาก 21.14 เป็น 25.07 หน่วย (วงของดาวเดิมทุกดวงไม่เปลี่ยน): ระยะกล้องที่พอดีกรอบเพิ่มขึ้น ~16 % (ดาวดูเล็กลงในมุมมองเริ่มต้น), `OWNER_POSITION` ขยับ ×1.17 เป็น `[-18.4, 9.2, -19.8]` (ยังอยู่นอกวงของ advisor แต่ยังไม่ถึงวง dynamic วงแรก; test กรอบภาพและ clearance ผ่าน), ขอบเขตความต่อเนื่องของ dead-band กล้องใน `test/workspace-orbit.test.js` ปรับตามขนาดระบบที่ใหญ่ขึ้น (ค่าที่วัดได้อยู่ในคอมเมนต์ของ test) `BLACK_HOLE_HOME` ไม่เปลี่ยน
+- ตรวจแล้วด้วย headless Chrome (WebGL, swiftshader): หน้าเปิดได้ ไม่มี console error นอกจาก `favicon.ico` 404 ที่มีอยู่เดิม, เห็นดาว teal และวงโคจรที่ 6, ป้าย `Opus-High`, card ใน Sub-Agents List และ log เมื่อส่ง event `Advisor` ผ่าน `POST /api/events` ยังไม่ได้เทียบด้วยตาว่าสี teal แยกจากดาวสีเขียว/น้ำเงินข้างเคียงได้ชัดทุกมุมกล้อง
 
 **ป้ายชื่อมี model และ effort:** ชื่อสมาชิกทีมทุกที่ (ป้ายใน 3D, tooltip ตอน hover, HUD, รายการทีม/fallback ที่ไม่มี WebGL, log) ต่อท้ายด้วย `(Model-Effort)` เช่น `Dev-ไอ้เก่ง (Sonnet-High)`
 - ค่ามาจาก frontmatter `model` และ `effort` ของ `.claude/agents/*.md` (จับคู่ agent ด้วยฟิลด์ `name`) ผ่าน `GET /api/agents` ที่ server อ่านใหม่ทุก request หน้าเว็บโหลดครั้งเดียวตอนเปิดหน้า ไม่ hardcode ค่าใด ๆ แก้ไฟล์แล้วรีโหลดหน้าก็เห็นค่าใหม่
@@ -291,10 +298,10 @@ Event log: the workspace log is `data/workspace-events.jsonl` (`config.WORKSPACE
 - คำตอบ: `{ "agents": { "<agent id>": { "name", "model", "effort", "suffix" } } }` ไม่มี path ของไฟล์ เป็น GET อย่างเดียวและผ่านการตรวจ Host / Origin เหมือน route อื่น
 
 **ดาวเคราะห์ dynamic (agent ที่ไม่อยู่ในทีม):**
-- agent ที่ไม่ใช่ `secretary`, `user` หรือหนึ่งใน 5 ตัวของทีม (`pm`, `app-dev`, `qa-reviewer`, `study-writer`, `portfolio-writer`) จะได้ดาวเป็นของตัวเองตอน event แรกของ agent นั้น (รวมถึง event ใน replay ตอนเปิดหน้า) key คือ `dyn:<agent>` (`dynamicKeyOf` ใน `stellar/model.js`)
-- ดาวใช้สถานะ, ดาวหาง (dispatch จากดวงอาทิตย์, result, failure เข้าหลุมดำ), energy ring, HUD และป้ายชื่อแบบเดียวกับดาวทั้ง 5 ดวงของทีม
+- agent ที่ไม่ใช่ `secretary`, `user` หรือหนึ่งใน 6 ตัวของทีม (`pm`, `app-dev`, `qa-reviewer`, `study-writer`, `portfolio-writer`, `advisor`) จะได้ดาวเป็นของตัวเองตอน event แรกของ agent นั้น (รวมถึง event ใน replay ตอนเปิดหน้า) key คือ `dyn:<agent>` (`dynamicKeyOf` ใน `stellar/model.js`)
+- ดาวใช้สถานะ, ดาวหาง (dispatch จากดวงอาทิตย์, result, failure เข้าหลุมดำ), energy ring, HUD และป้ายชื่อแบบเดียวกับดาวทั้ง 6 ดวงของทีม
 - **หน้าตาจากชื่อ:** สีและพื้นผิวคำนวณจาก hash (FNV-1a) ของชื่อ ชื่อเดิมจึงได้หน้าตาเดิมทุกครั้ง (`dynamicLook` ใน `stellar/dynamic.js`) ความเร็วและมุมเริ่มต้นก็มาจาก hash เช่นกัน
-- **วงโคจร:** วงที่ 1 อยู่นอกวงของ portfolio (ดาวทั้ง 5 ของทีมไม่เปลี่ยนตำแหน่งหรือหน้าตา) วงถัดไปห่างเท่า ๆ กัน ตามลำดับที่ agent ปรากฏ (`dynamicOrbitRadius` ใน `scene.js`)
+- **วงโคจร:** วงที่ 1 อยู่นอกวงของ advisor (ดาวทั้ง 6 ของทีมไม่เปลี่ยนตำแหน่งหรือหน้าตา) วงถัดไปห่างเท่า ๆ กัน ตามลำดับที่ agent ปรากฏ (`dynamicOrbitRadius` ใน `scene.js`)
 - **กล้อง:** เมื่อมีดาวเพิ่ม กล้องคำนวณ fit ใหม่ให้ทั้งระบบยังอยู่ในกรอบ (มุมมองรวมจะออกไปไกลขึ้น ดู Known limits)
 - **ป้ายชื่อ:** ดาว dynamic ใช้ด้านคงที่ "บน" (`labelSideOf`) และใช้กฎการจางเดียวกับป้ายอื่น
 - **เพดาน:** `MAX_DYNAMIC_PLANETS` = 4 (`stellar/dynamic.js`). agent ที่เกินเพดาน (agent ที่ 5 เป็นต้นไป ตามลำดับที่เห็นครั้งแรกในหน้านั้น) จะ **ไม่มีดาว** และไม่มีดาวหาง แต่ event ของ agent นั้นยังเข้า log และ HUD store ครั้งแรกที่ agent ถูกปฏิเสธ จะมี log 1 บรรทัดใน console ของเบราว์เซอร์
@@ -447,7 +454,7 @@ owner ยอมรับความขัดแย้งนี้สำหร�
 - **Escaped JSON** (`{\"password\":\"x\"}`) ไม่ถูก redact ข้อจำกัดที่รู้ ดู `HOOKS-SETUP.md` section 3 และ section 5
 - **Keyword ที่ไม่มี `:` หรือ `=`** (`my pass is hunter2`) ไม่ถูก redact ข้อจำกัดที่รู้ ดู `HOOKS-SETUP.md` section 3 และ section 5
 - **Stellar HUD (Phase 2):** การปิดงาน sync run ของ sub-agent ใช้ id ตรงตัวเมื่อ `PostToolUse` มาภายใน 8 s (hub พัก stop ไว้) ส่วนที่เกินเวลานี้ยังเป็น FIFO (ประมาณ, มี `~` ใน HUD) ดูรายละเอียดในหัวข้อ "การจับคู่งาน"
-- **Dynamic planets (ขนาดในจอ):** วงโคจรขยายออก: วงของ portfolio (ดาว 5 ดวง รวม PM-Professor-X) อยู่ที่รัศมี ~21.1 หน่วย วงที่ 1 ของดาว dynamic อยู่ที่ ~25.1 หน่วย และวงที่ 4 (เพดานปัจจุบัน) อยู่ที่ ~37.1 หน่วย ระยะกล้องที่พอดีกรอบ (aspect 1.0, pitch 0.34) เพิ่มจาก ~57.5 (ไม่มีดาว dynamic; ก่อนเพิ่ม PM-Professor-X คือ ~48.3) เป็น ~95.5 หน่วยเมื่อมีดาว dynamic 4 ดวง (เพดานเดิม 8 ดวงได้ ~133.5 หน่วย) ที่ aspect 0.6 (จอแคบ) ระยะกล้องเพิ่มเป็น ~151.5 หน่วย ซึ่งเป็นค่าสูงสุดที่วัดในชุด aspect 0.6 ถึง 2.0 (วัดด้วยการคำนวณ fit ใน Node ไม่ใช่บนจอจริง) ค่านี้ยังไม่ได้ดูบนจอจริง ถ้าเป็นปัญหา ให้ลด `MAX_DYNAMIC_PLANETS` หรือเพิ่ม aspect ของจอ
+- **Dynamic planets (ขนาดในจอ):** วงโคจรขยายออก: วงของ advisor (ดาว 6 ดวง รวม PM-Professor-X และ Advisor) อยู่ที่รัศมี ~25.1 หน่วย (วงของ portfolio ~21.1) วงที่ 1 ของดาว dynamic อยู่ที่ ~29.0 หน่วย และวงที่ 4 (เพดานปัจจุบัน) อยู่ที่ ~41.0 หน่วย ระยะกล้องที่พอดีกรอบ (aspect 1.0, pitch 0.34) เพิ่มจาก ~66.7 (ไม่มีดาว dynamic; ก่อนเพิ่ม Advisor คือ ~57.5 และก่อนเพิ่ม PM-Professor-X คือ ~48.3) เป็น ~104.7 หน่วยเมื่อมีดาว dynamic 4 ดวง (ก่อนเพิ่ม Advisor ~95.5; เพดานเดิม 8 ดวงได้ ~133.5 หน่วย ก่อนเพิ่ม Advisor) ที่ aspect 0.6 (จอแคบ) ระยะกล้องเพิ่มเป็น ~166.1 หน่วย (ก่อนเพิ่ม Advisor ~151.5) ซึ่งเป็นค่าสูงสุดที่วัดในชุด aspect 0.6 ถึง 2.0 (วัดด้วยการคำนวณ fit ใน Node ไม่ใช่บนจอจริง) ค่านี้ยังไม่ได้ดูบนจอจริง ถ้าเป็นปัญหา ให้ลด `MAX_DYNAMIC_PLANETS` หรือเพิ่ม aspect ของจอ
 - **Dynamic planets (ป้ายชื่อ):** ป้ายของดาว dynamic ใช้หน้าตาเดียวกับป้ายอื่น แต่สร้างด้วย JS (ไม่มีใน index.html) และไม่มี card ในรายการ agent ของหน้า list layout
 
 ## Verification log

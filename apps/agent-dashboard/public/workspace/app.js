@@ -57,6 +57,7 @@
     qa: [['router', 'qa'], ['appdev', 'qa']],
     study: [['router', 'study']],
     portfolio: [['router', 'portfolio']],
+    advisor: [['router', 'advisor']],
   };
 
   // Short names used in the log. Keys match the agent ids in lib/workspace-adapter.js
@@ -69,6 +70,7 @@
     'qa-reviewer': 'QA-คุณละเอียด',
     'study-writer': 'Writer-ยัยแว่นหนา',
     'portfolio-writer': 'Content Director',
+    'advisor': 'Advisor',
   };
 
   // Pipeline step -> agent id (the same mapping as stellar/model.js STEP_AGENT; 'user' = the owner, no model suffix)
@@ -79,6 +81,7 @@
     qa: 'qa-reviewer',
     study: 'study-writer',
     portfolio: 'portfolio-writer',
+    advisor: 'advisor',
   };
   const SUFFIX_OK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/; // "Model-Effort": letters, digits, dot, dash
 

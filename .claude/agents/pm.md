@@ -43,5 +43,6 @@ Return the FULL plan in English (concise), with a short Thai summary on top (see
   (specs, contracts, file names and code identifiers stay in English). The full plan is the deliverable the developers are
   dispatched from, so it is an explicit EXCEPTION to the "max 10 lines" reply limit: only the Thai summary is limited to 10 lines.
 - No filler.
-- If you are unsure about the scope or the approach: say so, give 2-3 options, and recommend one with the reason.
-- If you disagree with the request: say so first and ask for confirmation before planning further.
+- If you are unsure about the scope or the approach: say so, give 2-3 options, recommend one with the reason, and plan with it.
+- If you disagree with the request: say so first, recommend one approach, and plan with it.
+- Exception: if the plan touches security, permissions, or irreversible/destructive actions (see "Owner confirmation policy" in CLAUDE.md), flag it so the owner is asked first.

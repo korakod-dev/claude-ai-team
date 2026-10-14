@@ -68,12 +68,13 @@ test('the moon circle is clear of the planet body and its atmosphere, and the 4 
   assert.ok(chord > 4 * L.MOON_RADIUS, 'neighbouring moons are far apart');
 });
 
-test('G: the orbit layout was not changed by the moons (radii of the five registered orbits are the known values)', () => {
+test('G: the orbit layout was not changed by the moons (radii of the six registered orbits are the known values)', () => {
   // Same numbers that test/workspace-orbit.test.js and workspace-owner.test.js rely on; the moons add NO spacing
   const r = L.SATELLITE_ORBIT_RADIUS;
-  assert.deepEqual(L.SATELLITE_ORBIT_ORDER, ['pm', 'qa', 'study', 'appdev', 'portfolio']);
-  assert.ok(Math.abs(r.portfolio - 21.14) < 0.01, `outermost orbit is 21.14, got ${r.portfolio}`);
-  assert.deepEqual(L.SATELLITE_EXTENT, { pm: 1.46, appdev: 1.46, qa: 1.49, study: 1.46, portfolio: 1.52 });
+  assert.deepEqual(L.SATELLITE_ORBIT_ORDER, ['pm', 'qa', 'study', 'appdev', 'portfolio', 'advisor']);
+  assert.ok(Math.abs(r.portfolio - 21.14) < 0.01, `portfolio orbit is unchanged at 21.14, got ${r.portfolio}`);
+  assert.ok(Math.abs(r.advisor - 25.07) < 0.01, `outermost orbit (Advisor) is 25.07, got ${r.advisor}`);
+  assert.deepEqual(L.SATELLITE_EXTENT, { pm: 1.46, appdev: 1.46, qa: 1.49, study: 1.46, portfolio: 1.52, advisor: 1.46 });
 });
 
 test('F: moons are children of the planet body and do not use the dynamic-planet registry', () => {

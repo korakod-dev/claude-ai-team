@@ -7,8 +7,8 @@
  *   - Sun = เลขาคนสวย (main agent). Large (SUN_RADIUS), with a plasma surface (domain-warped noise), a chromosphere
  *     with prominences, a corona with streamers and a warm halo. Dispatching a task makes it flare and sends out
  *     a shock ring.
- *   - Planets = the five registered sub-agents (PM-Professor-X, Dev-ไอ้เก่ง, QA-คุณละเอียด, Writer-ยัยแว่นหนา, Content Director), each on its own circular orbit (ORBIT_LAYOUT block). Each agent has its own
- *     surface type (PLANET_THEME): PM-Professor-X pink continents (innermost orbit), Dev-ไอ้เก่ง circuit plates, QA-คุณละเอียด gas-giant bands, Writer-ยัยแว่นหนา continents, Content Director marble.
+ *   - Planets = the six registered sub-agents (PM-Professor-X, Dev-ไอ้เก่ง, QA-คุณละเอียด, Writer-ยัยแว่นหนา, Content Director, Advisor), each on its own circular orbit (ORBIT_LAYOUT block). Each agent has its own
+ *     surface type (PLANET_THEME): PM-Professor-X pink continents (innermost orbit), Dev-ไอ้เก่ง circuit plates, QA-คุณละเอียด gas-giant bands, Writer-ยัยแว่นหนา continents, Content Director marble (violet), Advisor marble (teal, outermost orbit).
  *     Dynamic planets: any other agent gets a planet on its first event (up to MAX_DYNAMIC_PLANETS). It sits on an orbit
  *     outside the registered ones, with a look derived from its name (stellar/dynamic.js). Beyond the cap it has no planet.
  *     Surfaces are lit by the sun (day side, terminator, night side). Orbit lines are visible in each planet's colour.
@@ -253,12 +253,13 @@ const SATELLITE_CONFIG = {
   qa:        { color: 0xfacc15, angle: -0.785, speed: 0.085, seed: 23 }, // QA-คุณละเอียด, gold, back-right
   study:     { color: 0x4ade80, angle: 2.356, speed: 0.09, seed: 37 },   // Writer-ยัยแว่นหนา, green, front-left
   portfolio: { color: 0xa78bfa, angle: 0.785, speed: 0.075, seed: 41 },  // Content Director, violet, front-right
+  advisor:   { color: 0x2dd4bf, angle: 1.571, speed: 0.07, seed: 59 },   // Advisor (read-only Q&A), teal, front centre, outermost orbit
 };
 
 // Planet surfaces: one type per agent (SURFACE in stellar/bodies.js) and its colours.
 //   c0, c1, c2: surface colours (their roles depend on the type), atmo: rim colour and energy ring colour.
 const PLANET_THEME = Object.freeze({
-  // Only four surface types exist (no heavy new shader), so five planets share them. PM uses BANDS in rose, not
+  // Only four surface types exist (no heavy new shader), so six planets share them. PM uses BANDS in rose, not
   // CONTINENTS (that is Writer-ยัยแว่นหนา's), so it is told apart by pattern (stripes + storm spot) and by colour
   // (rose vs QA's gold bands).
   pm: {
@@ -281,6 +282,12 @@ const PLANET_THEME = Object.freeze({
     type: SURFACE.MARBLE,
     c0: 0x3b0764, c1: 0xa78bfa, c2: 0xf5d0fe, atmo: 0xc084fc, ringScale: 1.6,
   },
+  // Advisor: MARBLE swirls (like Content Director) but in teal, so it is told apart by colour. Teal sits in the free hue gap
+  // between the green (study) and the electric blue (appdev) planets; orange/red were avoided (sun colour, error aura).
+  advisor: {
+    type: SURFACE.MARBLE,
+    c0: 0x042f2e, c1: 0x14b8a6, c2: 0xccfbf1, atmo: 0x2dd4bf, ringScale: 1.5,
+  },
 });
 
 
@@ -301,11 +308,11 @@ const SUN_CLEARANCE = SUN_RADIUS * 1.45;          // corona extent of the sun: n
 // PLANET_THEME.ringScale, ENERGY_PER_TASK, ENERGY_MAX_TASKS and BODY_RADIUS:
 //   appdev:    (1.50 + 0.84) x 0.62 = 1.45      study:     (1.50 + 0.84) x 0.62 = 1.45
 //   qa:        (1.55 + 0.84) x 0.62 = 1.48      portfolio: (1.60 + 0.84) x 0.62 = 1.51
-//   pm:        (1.50 + 0.84) x 0.62 = 1.45
-const SATELLITE_EXTENT = { pm: 1.46, appdev: 1.46, qa: 1.49, study: 1.46, portfolio: 1.52 };
+//   pm:        (1.50 + 0.84) x 0.62 = 1.45      advisor:   (1.50 + 0.84) x 0.62 = 1.45
+const SATELLITE_EXTENT = { pm: 1.46, appdev: 1.46, qa: 1.49, study: 1.46, portfolio: 1.52, advisor: 1.46 };
 
 // Inner -> outer. The order is chosen so that neighbouring orbits need the least space.
-const SATELLITE_ORBIT_ORDER = ['pm', 'qa', 'study', 'appdev', 'portfolio'];
+const SATELLITE_ORBIT_ORDER = ['pm', 'qa', 'study', 'appdev', 'portfolio', 'advisor'];
 
 /** Clearance radius of a satellite: how far its centre can be from the orbit circle plus its own extent. */
 function satelliteClearance(step) {
@@ -327,17 +334,17 @@ const SATELLITE_ORBIT_RADIUS = {};
 
 // Owner star (User Prompt, คุณกฎ): OUTSIDE the agent system, not above the sun. It sits off to the side, upper left and
 // toward the back, mirroring the black hole on the upper right (BLACK_HOLE_HOME). Geometry (see test/workspace-owner.test.js):
-//   - horizontal distance from the sun = hypot(x, z) = 23.07: beyond the outermost registered orbit (portfolio, 21.14), but
-//     BELOW the first dynamic ring (25.13), so the horizontal position alone does not separate it from the dynamic planets
-//   - the separation comes from the elevation: y = 7.9 lifts the star above the orbit plane, so even the nearest dynamic
-//     ring (and its +-0.35 bob) stays about 3.5 world units clear of the star's whole visual extent
+//   - horizontal distance from the sun = hypot(x, z) = 27.03: beyond the outermost registered orbit (advisor, 25.07), but
+//     BELOW the first dynamic ring (about 29.0), so the horizontal position alone does not separate it from the dynamic planets
+//   - the separation comes from the elevation: y = 9.2 lifts the star above the orbit plane, so even the nearest dynamic
+//     ring (and its +-0.35 bob) stays about 4.7 world units clear of the star's whole visual extent
 //   - the position is chosen so that the star stays fully inside the frame while the camera drifts +-0.22 rad in yaw,
-//     +-0.03 rad in pitch, for aspects 0.6 .. 2.0 at the start zoom (about 15 % of NDC left free at the worst case; the position was scaled by about 1.21 when the PM-Professor-X orbit was added)
+//     +-0.03 rad in pitch, for aspects 0.6 .. 2.0 at the start zoom (about 15 % of NDC left free at the worst case; the position was scaled by about 1.21 when the PM-Professor-X orbit was added and by about 1.17 when the Advisor orbit was added)
 // OWNER_RADIUS is the body radius (a planet is BODY_RADIUS 0.62, the sun 2.4; the old beacon was 0.2).
 // OWNER_EXTENT is its visual reach from the centre (spinning ring at 2.1 x radius, plus the soft core of the halo).
 const OWNER_RADIUS = 1.3;
 const OWNER_EXTENT = 2.8;
-const OWNER_POSITION = [-15.7, 7.9, -16.9];        // x, y, z (the sun is at the origin, -z is the back of the screen)
+const OWNER_POSITION = [-18.4, 9.2, -19.8];        // x, y, z (the sun is at the origin, -z is the back of the screen)
 
 // Room (world units) kept around every satellite for its HTML label. Used by the camera fit (CAMERA_FIT block).
 const LABEL_ROOM = 1.5;
@@ -373,7 +380,7 @@ function moonPosition(angle, out) {
 // Dynamic planets (agents that are not registered): one ring each, OUTSIDE the registered orbits, in arrival order.
 // Every dynamic planet has the same extent, the largest of the registered ones, so the ring spacing is fixed and
 // needs no per-planet check. Keep DYNAMIC_RING_SCALE (scene.js, below) within it: (ringScale + 0.84) x BODY_RADIUS <= extent.
-const DYNAMIC_EXTENT = 1.52;                      // = SATELLITE_EXTENT.portfolio (the largest registered extent)
+const DYNAMIC_EXTENT = 1.52;                      // = SATELLITE_EXTENT.portfolio (the largest registered extent; advisor is 1.46)
 const DYNAMIC_CLEARANCE = DYNAMIC_EXTENT + ORBIT_BOB_AMPLITUDE;
 // Radius of the first dynamic ring: outside the outermost registered orbit, with the same gap rule as the registered ones
 const DYNAMIC_ORBIT_BASE = SATELLITE_ORBIT_RADIUS[SATELLITE_ORBIT_ORDER[SATELLITE_ORBIT_ORDER.length - 1]]
@@ -465,7 +472,7 @@ function fitSamplePoints(orbits) {
   return points;
 }
 
-// The registered orbits (five). Dynamic orbits are added by setFitOrbits() when a dynamic planet appears.
+// The registered orbits (six). Dynamic orbits are added by setFitOrbits() when a dynamic planet appears.
 const REGISTERED_FIT_ORBITS = SATELLITE_ORBIT_ORDER.map((step) => ({ radius: SATELLITE_ORBIT_RADIUS[step], extent: SATELLITE_EXTENT[step] }));
 // The owner star and the black hole are not fit points: both sit in the corners of the frame that the (round) orbit system
 // leaves free, so the fit, and the sun position it produces, stay as they were. test/workspace-owner.test.js checks that the
@@ -654,6 +661,7 @@ const LABEL_SIDE = Object.freeze({
   qa: 'above',
   study: 'above',
   portfolio: 'above',
+  advisor: 'above',
 });
 // Dynamic planets (keys 'dyn:<agent>') are not in the table: they all use the same fixed side, above.
 const DYNAMIC_LABEL_SIDE = 'above';
@@ -839,7 +847,7 @@ let stageSized = false;    // true once resize() has seen a stage with a real si
 const bodies = new Map();  // body key (pipeline step, or 'dyn:<agent>' for a dynamic planet) -> body object
 const dynamic = createDynamicRegistry(MAX_DYNAMIC_PLANETS); // dynamic planets in arrival order (stellar/dynamic.js)
 // Label iteration order (depth ties in the fade are broken by id, see labelTargetOpacity)
-const LABEL_ORDER = ['router', 'user', 'pm', 'appdev', 'qa', 'study', 'portfolio'];
+const LABEL_ORDER = ['router', 'user', 'pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor'];
 const labelState = new Map();      // step -> displayed label opacity 0..1, eased toward its target (labelOpacityStep)
 let labelTargetState = null;       // step -> last target opacity (hysteresis of the fade), null until the first frame
 // Hover state (stellar/hover.js): hover.step = planet under the pointer (its label shows the detail), or null;
@@ -955,7 +963,7 @@ function buildBackdrop() {
 }
 
 /**
- * Sun, beacon, five planets, orbit lines, black hole and the comet pool.
+ * Sun, beacon, six planets, orbit lines, black hole and the comet pool.
  * The orbit lines are drawn in each planet's colour, so every lane is readable.
  */
 function buildBodies() {
@@ -970,7 +978,7 @@ function buildBodies() {
   world.add(beaconBuilt.group);
   bodies.set('user', makeBody('user', beaconBuilt, { kind: 'beacon', home: OWNER_HOME, haloBase: 4.5 }));
 
-  // Five planets: one surface type each, one orbit each
+  // Six planets: one surface type each (shared by two where needed), one orbit each
   Object.keys(SATELLITE_CONFIG).forEach((step) => {
     const cfg = SATELLITE_CONFIG[step];
     const theme = PLANET_THEME[step];

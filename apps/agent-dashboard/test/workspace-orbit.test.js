@@ -343,8 +343,14 @@ test('dead-band: height and distance change continuously across the threshold (n
   // (0.286 at the other two), no longer "about 0.25". Still continuous: bounds 0.07 / 0.16 / 0.4, distance 0.32.
   // The distance bound is 0.32, not 0.3: 0.3 left only about 2 % margin over the measured 0.294, so a tiny layout change
   // would fail the test without any real jump. 0.32 keeps about 9 % margin and is still far below a visible jump.
+  // Advisor planet (sixth orbit, outermost registered orbit 21.14 -> 25.07): the system is about 19 % larger again.
+  // Re-measured: height 0.0689 at pitch 0.34, 0.170 at 0.7, 0.208 at 1.19; distance step 0.3317 / 0.3317 / 0.3395. Still
+  // continuous (the steps scale with the system size, no jump), so the bounds follow it: 0.08 / 0.19 / 0.23, distance 0.37
+  // (about 9 % margin over 0.3395, the same rule as above). The pitch 1.19 bound was 0.4 (left over from the 0.291 measurement
+  // with the PM planet); the measured value is now 0.208, so 0.4 would leave about 92 % margin and could hide a real jump.
+  // It is tightened to 0.23 (about 10 % margin over 0.208, in line with the ~9 % rule used by the other bounds).
   const step = 0.002;
-  const bounds = [[BASE_PITCH, 0.07], [0.7, 0.16], [L.CAMERA_PITCH_MAX, 0.4]];
+  const bounds = [[BASE_PITCH, 0.08], [0.7, 0.19], [L.CAMERA_PITCH_MAX, 0.23]];
   for (const [pitch, maxHeightStep] of bounds) {
     let prev = solvedView(0.6, pitch);
     let maxDy = 0;
@@ -356,7 +362,7 @@ test('dead-band: height and distance change continuously across the threshold (n
       prev = cur;
     }
     assert.ok(maxDy <= maxHeightStep, `pitch ${pitch.toFixed(3)}: largest height step ${maxDy.toFixed(4)} per ${step} aspect`);
-    assert.ok(maxDd < 0.32, `pitch ${pitch.toFixed(3)}: largest distance step ${maxDd.toFixed(4)} per ${step} aspect`);
+    assert.ok(maxDd < 0.37, `pitch ${pitch.toFixed(3)}: largest distance step ${maxDd.toFixed(4)} per ${step} aspect`);
   }
 });
 

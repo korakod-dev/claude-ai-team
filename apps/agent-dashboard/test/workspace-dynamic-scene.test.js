@@ -59,7 +59,7 @@ const L = loadBlocks();
 const FOV_RAD = 50 * Math.PI / 180;
 const LOOK_Y = 0.4;
 const BASE_PITCH = 0.34;
-const REGISTERED_STEPS = ['pm', 'qa', 'study', 'appdev', 'portfolio'];   // inner -> outer (SATELLITE_ORBIT_ORDER)
+const REGISTERED_STEPS = ['pm', 'qa', 'study', 'appdev', 'portfolio', 'advisor'];   // inner -> outer (SATELLITE_ORBIT_ORDER)
 const MAX_DYNAMIC = 4;                                             // MAX_DYNAMIC_PLANETS (stellar/dynamic.js), checked below
 
 /** The dynamic orbits for n planets: radius and extent, as scene.js builds them. */
@@ -194,7 +194,7 @@ test('camera fit: with no dynamic planet the fit points are the registered ones 
   L.setFitOrbits(L.REGISTERED_FIT_ORBITS);
   const points = L.getFitPoints();
   const perOrbit = L.FIT_ANGLE_STEPS * 2 * (1 + L.FIT_DIRECTIONS.length);
-  assert.equal(points.length, REGISTERED_STEPS.length * perOrbit, 'five orbits (PM-Professor-X + the four older ones), the same sample count per orbit as before');
+  assert.equal(points.length, REGISTERED_STEPS.length * perOrbit, 'six orbits (Advisor + PM-Professor-X + the four older ones), the same sample count per orbit as before');
 });
 
 test('labels: a dynamic label sits on the fixed side "above"; the registered sides are unchanged', () => {
@@ -222,11 +222,11 @@ test('labels: a dynamic label fades like the others when it overlaps a nearer la
   assert.equal(targets.get('dyn:apart'), 1, 'a dynamic label with room stays visible');
 });
 
-test('registered planets: radii and extents of the registered layout (PM-Professor-X innermost; the dynamic rings only come after portfolio)', () => {
-  // The radii follow the registered formula. PM-Professor-X was added as the innermost orbit, so every older orbit moved out by 3.87.
+test('registered planets: radii and extents of the registered layout (PM-Professor-X innermost; Advisor outermost; the dynamic rings only come after advisor)', () => {
+  // The radii follow the registered formula. PM-Professor-X was added as the innermost orbit, so every older orbit moved out by 3.87. Advisor was added as the outermost orbit (25.07), so the older radii are unchanged.
   const radii = Object.fromEntries(REGISTERED_STEPS.map((s) => [s, Number(L.SATELLITE_ORBIT_RADIUS[s].toFixed(2))]));
-  assert.deepEqual(radii, { pm: 5.54, qa: 9.44, study: 13.34, appdev: 17.21, portfolio: 21.14 });
-  assert.deepEqual(REGISTERED_STEPS.map((s) => L.SATELLITE_EXTENT[s]), [1.46, 1.49, 1.46, 1.46, 1.52]);
+  assert.deepEqual(radii, { pm: 5.54, qa: 9.44, study: 13.34, appdev: 17.21, portfolio: 21.14, advisor: 25.07 });
+  assert.deepEqual(REGISTERED_STEPS.map((s) => L.SATELLITE_EXTENT[s]), [1.46, 1.49, 1.46, 1.46, 1.52, 1.46]);
 });
 
 test('wiring: scene.js uses the registry and the cap, refits the camera, builds the label and routes every event through it', () => {

@@ -9,7 +9,7 @@
  *   agent         canonical agent id (see AGENT_MAP), or the raw name if unknown
  *   status        one of STATUSES
  *   message       short text (Thai UI text is fine)
- *   pipelineStep  optional pipeline node id: 'user' | 'router' | 'pm' | 'appdev' | 'qa' | 'study' | 'portfolio'
+ *   pipelineStep  optional pipeline node id: 'user' | 'router' | 'pm' | 'appdev' | 'qa' | 'study' | 'portfolio' | 'advisor'
  *
  * Two sources produce this shape:
  *   1. Hook records from data/events.jsonl (written by hook-logger.js) -> convertHookRecord()
@@ -20,8 +20,9 @@ const { isDelegationTool } = require('./delegation');
 
 const STATUSES = ['IDLE', 'PROCESSING', 'WORKING', 'COMPLETED', 'ERROR'];
 // One pipeline node per team position. 'user' = the owner's command source, 'router' = เลขาคนสวย (entry),
-// the rest = the specialists (PM-Professor-X, the planner, was added next to the four writers / reviewers).
-const PIPELINE_STEPS = ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio'];
+// the rest = the specialists (PM-Professor-X, the planner, was added next to the four writers / reviewers;
+// Advisor, the read-only general Q&A agent, is the sixth specialist).
+const PIPELINE_STEPS = ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor'];
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_AGENT_LENGTH = 64;
 const SUMMARY_LENGTH = 160;
@@ -65,6 +66,9 @@ const AGENT_MAP = new Map([
   ['content director', { id: 'portfolio-writer', step: 'portfolio' }],
   ['content-director', { id: 'portfolio-writer', step: 'portfolio' }],
   ['กวีโปรเจกต์', { id: 'portfolio-writer', step: 'portfolio' }],
+  // Advisor = general Q&A / brainstorming, read-only (.claude/agents/advisor.md, frontmatter `name: Advisor`).
+  // 'advisor' is the agent id and the lower-cased display name, so "Advisor", "ADVISOR" and "advisor" all resolve here.
+  ['advisor', { id: 'advisor', step: 'advisor' }],
   // The owner's command source (dashboard command POST writes agent 'user')
   ['user', { id: 'user', step: 'user' }],
 ]);

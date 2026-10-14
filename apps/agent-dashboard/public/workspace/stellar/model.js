@@ -4,7 +4,7 @@
  *
  * Mapping (documented in README, section "3D scene"):
  *   main agent (secretary, เลขาคนสวย)                  = the sun (pipeline step 'router')
- *   sub-agents (pm, app-dev, qa-reviewer, ...)       = planets (steps pm, appdev, qa, study, portfolio)
+ *   sub-agents (pm, app-dev, qa-reviewer, ...)       = planets (steps pm, appdev, qa, study, portfolio, advisor)
  *   any other agent (not registered)                 = a dynamic planet, key 'dyn:<agent>' (see dynamicKeyOf, stellar/dynamic.js)
  *   task dispatched to a sub-agent (PROCESSING)      = comet sun -> planet (drawn by handoff() in scene.js)
  *   task finished by a sub-agent (COMPLETED)         = result comet planet -> sun
@@ -18,8 +18,8 @@
 
 // The sun is the main agent. Its pipeline step is 'router' (see lib/workspace-adapter.js).
 export const SUN_STEP = 'router';
-// Planets: the five registered sub-agents, one planet per agent in the team list.
-export const PLANET_STEPS = Object.freeze(['pm', 'appdev', 'qa', 'study', 'portfolio']);
+// Planets: the six registered sub-agents, one planet per agent in the team list.
+export const PLANET_STEPS = Object.freeze(['pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor']);
 // Pseudo step for the black hole (target of failed tasks). It is not an agent.
 export const BLACK_HOLE_STEP = 'blackhole';
 
@@ -32,6 +32,7 @@ export const STEP_AGENT = Object.freeze({
   qa: 'qa-reviewer',
   study: 'study-writer',
   portfolio: 'portfolio-writer',
+  advisor: 'advisor',
 });
 
 // Canonical agent id -> pipeline step (inverse of STEP_AGENT).
@@ -50,6 +51,7 @@ const AGENT_LABEL = Object.freeze({
   'qa-reviewer': Object.freeze({ name: 'QA-คุณละเอียด', detail: ' · read-only' }),
   'study-writer': Object.freeze({ name: 'Writer-ยัยแว่นหนา', detail: ' · study/' }),
   'portfolio-writer': Object.freeze({ name: 'Content Director', detail: ' · portfolio/' }),
+  advisor: Object.freeze({ name: 'Advisor', detail: ' · read-only Q&A' }),
 });
 
 /** True when the plain object has its own key (avoids prototype keys such as 'constructor'). */

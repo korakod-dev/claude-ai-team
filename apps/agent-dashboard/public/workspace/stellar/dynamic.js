@@ -1,5 +1,5 @@
 /**
- * stellar/dynamic.js - Dynamic planets: a planet for every agent that is not registered (the five team planets are
+ * stellar/dynamic.js - Dynamic planets: a planet for every agent that is not registered (the six team planets are
  * fixed in scene.js). Pure: no DOM, no THREE. Used by scene.js and test/stellar-dynamic.test.js.
  *
  *   dynamicLook(agent)            deterministic look of an agent: surface type, colours, start angle and speed.

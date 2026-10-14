@@ -30,7 +30,7 @@
   <!-- Two columns: the approval queue panel was removed from this page (the queue API stays on the server) -->
   <main class="grid">
     <!-- LEFT: the 3D team scene (scene.js, Three.js r170 vendored in ./vendor/three).
-         Layout: เลขาคนสวย (router) is the sun; five satellites orbit it; the owner (User Prompt) is a larger star OUTSIDE the outer orbit, upper left.
+         Layout: เลขาคนสวย (router) is the sun; six satellites orbit it; the owner (User Prompt) is a larger star OUTSIDE the outer orbit, upper left.
          The stage starts with class "no-webgl" (list layout). scene.js removes that class when the 3D scene runs.
          Without WebGL the list layout stays and the message below is shown. -->
     <section class="panel panel-pipeline" aria-labelledby="pipe-title">
@@ -41,7 +41,7 @@
       <div id="stage" class="stage no-webgl">
         <!-- The canvas is added here by scene.js. Mouse: drag to orbit, wheel to zoom, double-click to reset. -->
         <div id="scene" class="scene" role="img"
-             aria-label="Stellar map of the agent team: เลขาคนสวย is the sun and routes work to planets PM-Professor-X (planner), Dev-ไอ้เก่ง (apps/), QA-คุณละเอียด (read-only), Writer-ยัยแว่นหนา (study/) and Content Director (portfolio/). The black hole on the right takes failed tasks. Click a planet for its details."></div>
+             aria-label="Stellar map of the agent team: เลขาคนสวย is the sun and routes work to planets PM-Professor-X (planner), Dev-ไอ้เก่ง (apps/), QA-คุณละเอียด (read-only), Writer-ยัยแว่นหนา (study/), Content Director (portfolio/) and Advisor (read-only Q&amp;A). The black hole on the right takes failed tasks. Click a planet for its details."></div>
 
         <!-- Shown only when WebGL is not available (scene.js sets hidden = false). -->
         <p id="webgl-fallback" class="webgl-fallback" hidden>WebGL ใช้ไม่ได้ในเบราว์เซอร์นี้ จึงแสดงสถานะเป็นรายการแทนฉาก 3D</p>
@@ -163,6 +163,17 @@
               <div class="node-msg" data-msg></div>
             </div>
           </div>
+
+          <!-- Advisor (general Q&A, read-only): teal -->
+          <div class="node" data-step="advisor" data-status="IDLE">
+            <div class="node-info">
+              <span class="node-name">Advisor</span>
+              <span class="node-model"></span>
+              <span class="node-detail">read-only Q&amp;A</span>
+              <span class="badge" data-badge data-kind="badge">IDLE</span>
+              <div class="node-msg" data-msg></div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -220,6 +231,14 @@
             <div class="agent-info">
               <div class="agent-name"><span data-name>Content Director</span></div>
               <div class="agent-scope">portfolio/</div>
+            </div>
+            <span class="pill" data-pill data-kind="pill">IDLE</span>
+          </li>
+          <li class="agent-card" data-agent="advisor" data-status="IDLE">
+            <span class="agent-emoji" aria-hidden="true">💡</span>
+            <div class="agent-info">
+              <div class="agent-name"><span data-name>Advisor</span></div>
+              <div class="agent-scope">Read-only: general Q&amp;A, explains concepts, brainstorming</div>
             </div>
             <span class="pill" data-pill data-kind="pill">IDLE</span>
           </li>

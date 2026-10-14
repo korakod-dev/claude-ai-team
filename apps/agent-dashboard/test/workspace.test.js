@@ -246,8 +246,9 @@ test('เลขาคนสวย is the router (entry) step, not the user node'
   assert.deepEqual(resolveAgent('secretary'), { id: 'secretary', step: 'router' });
 });
 
-test('every team position has its own pipeline node (pm, study and portfolio included)', () => {
-  assert.deepEqual(PIPELINE_STEPS, ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio']);
+test('every team position has its own pipeline node (pm, study, portfolio and advisor included)', () => {
+  assert.deepEqual(PIPELINE_STEPS, ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor']);
+  assert.equal(resolveAgent('Advisor').step, 'advisor');
   assert.equal(resolveAgent('Writer-ยัยแว่นหนา').step, 'study');
   assert.equal(resolveAgent('Content Director').step, 'portfolio');
   const ev = validateEvent({ agent: 'portfolio-writer', status: 'WORKING', message: 'กำลังเขียน' }).event;

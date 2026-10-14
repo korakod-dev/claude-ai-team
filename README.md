@@ -2,7 +2,7 @@
 
 **English summary.** A personal multi-agent setup for [Claude Code](https://claude.com/claude-code): one secretary agent
 (the only agent the owner talks to) routes every request to specialist agents (planner, developer, QA reviewer, study writer,
-portfolio writer). Each specialist has its own folder scope, model and effort level, all defined as Markdown files in
+portfolio writer, and an advisor for general Q&A, read-only). Each specialist has its own folder scope, model and effort level, all defined as Markdown files in
 `.claude/agents/`. The repo also contains `agent-dashboard`, a zero-dependency Node.js app that turns Claude Code hook events
 into a live 3D view (planets = agents, moons = concurrent instances, beams = tool calls). It runs on `127.0.0.1` only.
 Screenshots below use synthetic demo events.
@@ -31,6 +31,7 @@ repo นี้คือชุดทีม AI สำหรับ Claude Code: ผ
 | QA-คุณละเอียด | ตรวจโค้ดและเอกสาร หา bug เขียน test case | opus | medium | อ่านอย่างเดียว (Bash ไว้รัน test ที่มีอยู่เท่านั้น) |
 | Writer-ยัยแว่นหนา | งานเรียน: รายงาน สรุป เตรียมสอบ ค้นคว้า | sonnet | high | ทำงานใน `study/` |
 | Content Director | เนื้อหาพอร์ตโฟลิโอ: write-up โปรเจกต์ case study โพสต์สั้น | sonnet | medium | ทำงานใน `portfolio/` (อ่าน `apps/` ได้ แก้ไม่ได้) |
+| Advisor | ถาม-ตอบทั่วไป อธิบายแนวคิด ระดมความคิด (ไม่ใช่งานเรียน/พอร์ต/โค้ด) ตอบเป็นภาษาไทยแบบเต็ม | opus | high | อ่านอย่างเดียว (`Read`, `Glob`, `Grep`, `WebSearch`, `WebFetch`) |
 
 ลำดับงานที่เลขาใช้ (จาก `.claude/agents/secretary.md`):
 
@@ -42,7 +43,7 @@ repo นี้คือชุดทีม AI สำหรับ Claude Code: ผ
 
 ```
 .claude/
-  agents/            ไฟล์นิยาม agent (secretary, pm, app-dev, qa-reviewer, study-writer, portfolio-writer)
+  agents/            ไฟล์นิยาม agent (secretary, pm, app-dev, qa-reviewer, study-writer, portfolio-writer, advisor)
   settings.json      ตั้งเลขาคนสวยเป็น agent หลัก และอนุญาต Edit/Write
   settings.local.json  (ไม่ถูก commit) hook ของ dashboard บนเครื่องของคุณ
 CLAUDE.md            กติกากลางที่ทุก agent อ่าน

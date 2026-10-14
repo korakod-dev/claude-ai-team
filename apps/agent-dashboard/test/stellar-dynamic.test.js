@@ -23,7 +23,7 @@ async function load() {
   return { model, dyn };
 }
 
-const REGISTERED_AGENTS = ['pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer', 'secretary', 'user'];
+const REGISTERED_AGENTS = ['pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer', 'advisor', 'secretary', 'user'];
 
 test('keys: a registered team agent, the main agent and the user have no dynamic key', async () => {
   const { model } = await load();

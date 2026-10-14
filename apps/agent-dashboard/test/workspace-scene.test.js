@@ -151,7 +151,7 @@ test('index.html: no image, no SVG edge layer, no inline script; the 3D stage, l
   assert.match(html, /id="scene"/);
   assert.match(html, /id="label-layer"/);
   const layer = html.slice(html.indexOf('id="label-layer"'), html.indexOf('</main>'));
-  for (const step of ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio']) {
+  for (const step of ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor']) {
     assert.match(layer, new RegExp(`class="node" data-step="${step}"`), `label for ${step} is in the label layer`);
   }
 });
@@ -208,7 +208,7 @@ function loadPage({ scene, immediateTimers = false }) {
   const log = fakeEl('ol');
   const clear = fakeEl('button');
   const byId = { 'status-badge': badge, 'status-text': text, log, 'clear-view-btn': clear };
-  const steps = ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio'];
+  const steps = ['user', 'router', 'pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor'];
   const nodes = steps.map((step) => {
     const b = fakeEl('span');
     b.dataset.kind = 'badge';
@@ -217,7 +217,7 @@ function loadPage({ scene, immediateTimers = false }) {
     node.dataset.step = step;
     return node;
   });
-  const agents = ['secretary', 'pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer'].map((agent) => {
+  const agents = ['secretary', 'pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer', 'advisor'].map((agent) => {
     const p = fakeEl('span');
     p.dataset.kind = 'pill';
     const card = fakeEl('li', { '[data-pill]': p });

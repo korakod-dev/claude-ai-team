@@ -118,7 +118,7 @@ test('index.html: the cards and nodes use the new names and the old English alia
   assert.equal(/Keng|La-iad|agent-alias/.test(html), false, 'redundant English aliases removed from the cards');
 });
 
-test('.claude/agents/*.md: frontmatter names are the new names and the secretary may call exactly the five specialists', () => {
+test('.claude/agents/*.md: frontmatter names are the new names and the secretary may call exactly the six specialists', () => {
   const nameOf = (file) => /^name:\s*(.+)$/m.exec(fs.readFileSync(path.join(AGENTS_DIR, file), 'utf8'))[1].trim();
   assert.equal(nameOf('secretary.md'), 'เลขาคนสวย');
   assert.equal(nameOf('pm.md'), 'PM-Professor-X');
@@ -126,17 +126,71 @@ test('.claude/agents/*.md: frontmatter names are the new names and the secretary
   assert.equal(nameOf('qa-reviewer.md'), 'QA-คุณละเอียด');
   assert.equal(nameOf('study-writer.md'), 'Writer-ยัยแว่นหนา');
   assert.equal(nameOf('portfolio-writer.md'), 'Content Director');
+  assert.equal(nameOf('advisor.md'), 'Advisor');
 
   const tools = /^tools:\s*Agent\(([^)]*)\)/m.exec(fs.readFileSync(path.join(AGENTS_DIR, 'secretary.md'), 'utf8'));
   assert.ok(tools, 'secretary.md has an Agent(...) tool list');
   const listed = tools[1].split(',').map((s) => s.trim()).sort();
-  const expected = ['PM-Professor-X', 'Dev-ไอ้เก่ง', 'QA-คุณละเอียด', 'Writer-ยัยแว่นหนา', 'Content Director'].sort();
-  assert.deepEqual(listed, expected, 'exactly the same five agents, renamed');
+  const expected = ['PM-Professor-X', 'Dev-ไอ้เก่ง', 'QA-คุณละเอียด', 'Writer-ยัยแว่นหนา', 'Content Director', 'Advisor'].sort();
+  assert.deepEqual(listed, expected, 'exactly the same six agents (five renamed + the new Advisor)');
 });
 
-test('readAgentModels: the real agent files resolve to the six agent ids through the new names', () => {
+test('readAgentModels: the real agent files resolve to the seven agent ids (secretary + six specialists) through the new names', () => {
   const info = readAgentModels(AGENTS_DIR);
-  for (const id of ['secretary', 'pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer']) {
+  for (const id of ['secretary', 'pm', 'app-dev', 'qa-reviewer', 'study-writer', 'portfolio-writer', 'advisor']) {
     assert.ok(info[id], `${id} found in .claude/agents`);
   }
+});
+
+// ---------- Advisor (sixth specialist, added after the rename; no old name, so it is not in RENAMES) ----------
+
+test('Advisor: every spelling maps to agent id "advisor" and pipeline step "advisor"', () => {
+  for (const name of ['Advisor', 'advisor', 'ADVISOR', '  Advisor  ']) {
+    assert.deepEqual(resolveAgent(name), { id: 'advisor', step: 'advisor' }, `${name} -> advisor`);
+  }
+  // A name that is only similar must stay unknown (step null)
+  for (const name of ['Advise', 'Advisors', 'Advisor-X']) assert.equal(resolveAgent(name).step, null, `${name} is unknown`);
+});
+
+test('Advisor: validateEvent and convertHookRecord attribute events to the advisor node', () => {
+  const posted = validateEvent({ agent: 'Advisor', status: 'WORKING', message: 'answering' });
+  assert.equal(posted.event.agent, 'advisor');
+  assert.equal(posted.event.pipelineStep, 'advisor');
+  // An explicit pipelineStep "advisor" is accepted (it is in PIPELINE_STEPS)
+  assert.ok(validateEvent({ agent: 'advisor', status: 'IDLE', message: 'x', pipelineStep: 'advisor' }).event);
+  // Delegation from the secretary: the handoff drives the advisor node
+  const handoff = convertHookRecord({
+    ts: TS, event: 'PreToolUse', agent_type: 'เลขาคนสวย', tool_name: 'Agent',
+    subagent_type: 'Advisor', description: 'Explain a concept',
+  });
+  assert.ok(handoff, 'delegation record converts');
+  assert.equal(handoff.agent, 'advisor');
+  assert.equal(handoff.pipelineStep, 'advisor');
+  // The sub-agent's own lifecycle record is attributed to it too
+  const start = convertHookRecord({ ts: TS, event: 'SubagentStart', agent_type: 'Advisor', agent_id: 'agent-adv-1' });
+  assert.equal(start.agent, 'advisor');
+  assert.equal(start.pipelineStep, 'advisor');
+});
+
+test('Advisor: the real .claude/agents/advisor.md is served with its model and effort', () => {
+  const info = readAgentModels(AGENTS_DIR);
+  assert.ok(info.advisor, 'advisor found in .claude/agents');
+  assert.equal(info.advisor.name, 'Advisor');
+  assert.ok(info.advisor.model, 'model is read from the frontmatter');
+});
+
+test('Advisor: the page has a label, a team card, a planet config and a model-label entry', async () => {
+  const root = path.join(__dirname, '..', 'public', 'workspace');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.match(html, /class="node" data-step="advisor"/, 'label node in the label layer');
+  assert.match(html, /class="agent-card" data-agent="advisor"/, 'card in the team list');
+  const model = await import(pathToFileURL(path.join(root, 'stellar', 'model.js')).href);
+  model.setAgentModels({});
+  assert.match(model.labelOf('advisor'), /^Advisor/);
+  assert.equal(model.STEP_AGENT.advisor, 'advisor');
+  assert.ok(model.PLANET_STEPS.includes('advisor'), 'advisor is a registered planet');
+  assert.equal(model.dynamicKeyOf('advisor'), null, 'advisor never becomes a dynamic planet');
+  const scene = fs.readFileSync(path.join(root, 'scene.js'), 'utf8');
+  assert.match(scene, /const PLANET_THEME = [\s\S]*?\n  advisor: \{/, 'planet theme');
+  assert.match(scene, /const SATELLITE_CONFIG = \{[\s\S]*?\n  advisor: /, 'orbit config');
 });

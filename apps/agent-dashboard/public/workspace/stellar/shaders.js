@@ -223,7 +223,7 @@ export const CORONA_FRAG = NOISE_GLSL + `
 //   0 circuit   (Dev-ไอ้เก่ง, apps/)           ridged noise veins over dark-blue plates
 //   1 bands     (QA-คุณละเอียด, read-only; also PM-Professor-X in rose)    gas-giant bands with a storm spot
 //   2 continents (Writer-ยัยแว่นหนา, study/) ocean, land and cloud layer
-//   3 marble    (Content Director, portfolio/) domain-warped swirls
+//   3 marble    (Content Director, portfolio/ in violet; Advisor in teal) domain-warped swirls
 // Lighting: the sun sits at the world origin, so the sunward side is lit and the far side is night (soft terminator).
 export const PLANET_FRAG = NOISE_GLSL + `
   uniform float uType;     // 0..3, see above

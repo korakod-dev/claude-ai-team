@@ -1,7 +1,7 @@
 'use strict';
 /**
  * stellar-model.test.js - Pure rules of the Stellar Universe view (public/workspace/stellar/model.js):
- *   - step <-> agent mapping (the planets are the five registered sub-agents, the sun is the main agent)
+ *   - step <-> agent mapping (the planets are the six registered sub-agents, the sun is the main agent)
  *   - body mood from status (COMPLETED is a flash only while flashing)
  *   - planet look per mood (idle slow / active fast + energy ring / error jitter + red aura)
  *   - event -> visual intents (ERROR -> failure comet into the black hole, COMPLETED from a planet -> result comet)
@@ -22,10 +22,10 @@ async function loadModel() {
   return import(pathToFileURL(path.join(STELLAR_DIR, 'model.js')).href);
 }
 
-test('mapping: the sun is the main agent and the planets are the five registered sub-agents (PM-Professor-X included)', async () => {
+test('mapping: the sun is the main agent and the planets are the six registered sub-agents (PM-Professor-X and Advisor included)', async () => {
   const m = await loadModel();
   assert.equal(m.SUN_STEP, 'router');
-  assert.deepEqual([...m.PLANET_STEPS], ['pm', 'appdev', 'qa', 'study', 'portfolio']);
+  assert.deepEqual([...m.PLANET_STEPS], ['pm', 'appdev', 'qa', 'study', 'portfolio', 'advisor']);
   assert.equal(m.STEP_AGENT.router, 'secretary');
   assert.equal(m.STEP_AGENT.pm, 'pm');
   // The inverse map is exact (one step per agent)
